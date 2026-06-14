@@ -1,0 +1,10 @@
+{
+  "name": "Nexo · Finanzas personales",
+  "short_name": "Nexo",
+  "description": "Control de finanzas personales con registro por foto, voz y objetivos de ahorro.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": []
+}

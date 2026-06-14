@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Paleta pastel: lila (principal), menta (secundario/positivo), melocotón (error). */
+    --background: 250 40% 99%;
+    --foreground: 249 24% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 249 24% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 249 24% 18%;
+    --primary: 247 61% 77%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 248 52% 96%;
+    --secondary-foreground: 249 38% 38%;
+    --muted: 250 32% 96%;
+    --muted-foreground: 249 12% 52%;
+    --accent: 248 60% 96%;
+    --accent-foreground: 249 42% 44%;
+    --destructive: 24 100% 86%;
+    --destructive-foreground: 24 48% 30%;
+    --border: 250 30% 92%;
+    --input: 250 30% 92%;
+    --ring: 247 61% 77%;
+    --chart-1: 247 61% 77%;
+    --chart-2: 158 55% 78%;
+    --chart-3: 24 100% 86%;
+    --chart-4: 249 48% 68%;
+    --chart-5: 158 42% 64%;
+    --radius: 1rem;
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 249 12% 42%;
+    --sidebar-primary: 247 61% 77%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 248 60% 96%;
+    --sidebar-accent-foreground: 249 42% 44%;
+    --sidebar-border: 250 30% 93%;
+    --sidebar-ring: 247 61% 77%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Fondo suave con tintes (violeta arriba-izda, verde/melocotón arriba-dcha)
+     que recrea el ambiente de los diseños de Stitch. */
+  .nexo-canvas {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(60% 50% at 12% 0%, hsl(247 70% 95% / 0.9), transparent 70%),
+      radial-gradient(55% 45% at 100% 0%, hsl(158 60% 92% / 0.7), transparent 70%),
+      radial-gradient(45% 40% at 90% 8%, hsl(24 100% 94% / 0.5), transparent 70%);
+  }
+  /* Gradiente del hero "Balance Total" (lila -> menta). */
+  .nexo-hero-gradient {
+    background-image: linear-gradient(
+      120deg,
+      hsl(247 61% 77%) 0%,
+      hsl(200 55% 80%) 50%,
+      hsl(158 55% 78%) 100%
+    );
+  }
+  .nexo-scrollbar-none {
+    scrollbar-width: none;
+  }
+  .nexo-scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
