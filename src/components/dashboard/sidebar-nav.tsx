@@ -57,14 +57,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </nav>
-
-      <Link
-        href="/dashboard"
-        onClick={onNavigate}
-        className="flex items-center justify-center rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/30 transition-transform hover:-translate-y-0.5"
-      >
-        Upgrade to Pro
-      </Link>
     </div>
   );
 }
