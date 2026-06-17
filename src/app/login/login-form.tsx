@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
+  const [showLoginPassword, setShowLoginPassword] = React.useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = React.useState(false);
   const target = callbackUrl || "/dashboard";
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
@@ -96,13 +98,25 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="login-password">Contraseña</Label>
-            <Input
-              id="login-password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="login-password"
+                name="password"
+                type={showLoginPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowLoginPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+                aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -136,15 +150,27 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="reg-password">Contraseña</Label>
-            <Input
-              id="reg-password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              placeholder="Mínimo 8 caracteres"
-            />
+            <div className="relative">
+              <Input
+                id="reg-password"
+                name="password"
+                type={showRegisterPassword ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                placeholder="Mínimo 8 caracteres"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowRegisterPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+                aria-label={showRegisterPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
