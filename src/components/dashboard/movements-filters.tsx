@@ -31,8 +31,8 @@ export function MovementsFilters({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex rounded-full bg-muted p-1">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex self-start rounded-full bg-muted p-1 sm:self-auto">
         {types.map((t) => (
           <button
             key={t.key}
@@ -47,12 +47,12 @@ export function MovementsFilters({
         ))}
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex gap-2 sm:ml-auto">
         <select
           value={category}
           onChange={(e) => setParam("category", e.target.value || null)}
           className={cn(
-            "rounded-full border px-4 py-2 text-sm font-semibold outline-none transition-colors focus:border-primary/50",
+            "min-w-0 flex-1 rounded-full border px-4 py-2 text-sm font-semibold outline-none transition-colors focus:border-primary/50 sm:flex-none",
             category
               ? "border-primary/40 bg-accent text-accent-foreground"
               : "border-border bg-card text-foreground",
@@ -69,7 +69,7 @@ export function MovementsFilters({
         <select
           value={month}
           onChange={(e) => setParam("month", e.target.value)}
-          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground outline-none focus:border-primary/50"
+          className="min-w-0 flex-1 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground outline-none focus:border-primary/50 sm:flex-none"
         >
           {monthOptions.map((m) => (
             <option key={m.value} value={m.value}>

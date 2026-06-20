@@ -116,21 +116,21 @@ export function AddExpense() {
       {/* Método de entrada */}
       <section>
         <h2 className="text-lg font-bold tracking-tight">Método de entrada</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
           {methods.map((m) => (
             <button
               key={m.key}
               onClick={() => pickMethod(m.key)}
               className={cn(
-                "flex flex-col items-center rounded-3xl border bg-card p-6 text-center shadow-sm transition-all hover:-translate-y-0.5",
+                "flex flex-col items-center rounded-2xl border bg-card p-3 text-center shadow-sm transition-all hover:-translate-y-0.5 sm:rounded-3xl sm:p-6",
                 method === m.key ? "border-primary/50 ring-2 ring-primary/20" : "border-border/60",
               )}
             >
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: m.bg, color: m.fg }}>
-                <m.icon className="h-6 w-6" />
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl sm:h-14 sm:w-14 sm:rounded-2xl" style={{ backgroundColor: m.bg, color: m.fg }}>
+                <m.icon className="h-5 w-5 sm:h-6 sm:w-6" />
               </span>
-              <p className="mt-4 text-base font-bold text-primary">{m.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.desc}</p>
+              <p className="mt-2 text-xs font-bold leading-tight text-primary sm:mt-4 sm:text-base">{m.title}</p>
+              <p className="mt-1 hidden text-xs leading-relaxed text-muted-foreground sm:block">{m.desc}</p>
             </button>
           ))}
         </div>
