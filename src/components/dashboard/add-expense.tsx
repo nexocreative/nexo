@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Mic, PenLine, Receipt, Sparkles, Check, Upload, Loader2 } from "lucide-react";
+import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square } from "lucide-react";
 import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import { createTransaction } from "@/app/dashboard/actions";
@@ -18,12 +18,6 @@ const methods: { key: Method; title: string; desc: string; icon: typeof Camera; 
   { key: "manual", title: "Manual", desc: "Introduce los detalles paso a paso.", icon: PenLine, bg: PALETTE.peachSoft, fg: PALETTE.peachInk },
 ];
 
-// Datos simulados que devolvería OpenAI (la API key real está pendiente).
-const MOCK = {
-  photo: { merchant: "Whole Foods Market", amount: "64.50", category: "supermercado" },
-  voice: { merchant: "Gasolinera Repsol", amount: "50.00", category: "transporte" },
-};
-
 export function AddExpense() {
   const router = useRouter();
   const [method, setMethod] = React.useState<Method>("manual");
@@ -36,13 +30,17 @@ export function AddExpense() {
   const [analyzing, setAnalyzing] = React.useState(false);
   const [receiptPath, setReceiptPath] = React.useState<string | null>(null);
   const [preview, setPreview] = React.useState<string | null>(null);
+  const [recording, setRecording] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const chunksRef = React.useRef<Blob[]>([]);
 
   function pickMethod(m: Method) {
     setMethod(m);
     setDetected(false);
     setReceiptPath(null);
     setPreview(null);
+    setRecording(false);
     if (m === "manual") {
       setMerchant("");
       setAmount("");
@@ -77,14 +75,57 @@ export function AddExpense() {
     }
   }
 
-  // Por voz: simulado (pendiente de integrar Whisper).
-  function simulate() {
-    const data = MOCK.voice;
-    setMerchant(data.merchant);
-    setAmount(data.amount);
-    setCategory(data.category);
-    setDetected(true);
-    toast.success("Voz transcrita con IA (demo)");
+  // Por voz: graba con el micro y lo envía a /api/voice (Whisper + GPT-4o).
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        analyzeVoice(blob);
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch {
+      toast.error("No se pudo acceder al micrófono. Revisa los permisos.");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  async function analyzeVoice(blob: Blob) {
+    setAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", blob, "audio.webm");
+      const res = await fetch("/api/voice", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo procesar la voz");
+        return;
+      }
+      const d = json.data;
+      if (d.comercio) setMerchant(d.comercio);
+      if (d.importe) setAmount(String(d.importe));
+      if (d.categoria) setCategory(d.categoria);
+      if (d.fecha) setDate(d.fecha);
+      setDetected(true);
+      toast.success(`Entendido: “${json.transcript}”`);
+    } catch {
+      toast.error("Error de conexión al procesar la voz");
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
   async function confirm() {
@@ -171,17 +212,34 @@ export function AddExpense() {
             </div>
           ) : showSimulate && method === "voice" ? (
             <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
-                <Mic className="h-6 w-6" />
+              <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+                {recording && (
+                  <span className="absolute inset-0 animate-ping rounded-2xl" style={{ backgroundColor: PALETTE.lila, opacity: 0.4 }} />
+                )}
+                {analyzing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Mic className="relative h-6 w-6" />}
               </span>
-              <p className="mt-4 text-sm font-semibold text-foreground">Pulsa y di tu gasto en alto</p>
-              <p className="mt-1 text-xs text-muted-foreground">Whisper transcribe y GPT-4o estructura los campos (demo).</p>
-              <button
-                onClick={simulate}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-              >
-                <Sparkles className="h-4 w-4" /> Transcribir voz (demo)
-              </button>
+              <p className="mt-4 text-sm font-semibold text-foreground">
+                {analyzing ? "Transcribiendo con IA…" : recording ? "Escuchando… habla ahora" : "Pulsa y di tu gasto en alto"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Ej: &ldquo;Gasolinera, 50 euros, hoy&rdquo;. Whisper transcribe y GPT-4o extrae los datos.
+              </p>
+              {!recording ? (
+                <button
+                  onClick={startRecording}
+                  disabled={analyzing}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  <Mic className="h-4 w-4" /> {analyzing ? "Procesando…" : "Empezar a hablar"}
+                </button>
+              ) : (
+                <button
+                  onClick={stopRecording}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#C2496B] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  <Square className="h-4 w-4" /> Detener y analizar
+                </button>
+              )}
             </div>
           ) : (
             <>
