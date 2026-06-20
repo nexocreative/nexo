@@ -30,6 +30,7 @@ export default async function VacacionesPage() {
         txCount: c.txCount,
         start_date: c.start_date,
         end_date: c.end_date,
+        expenses: c.expenses,
       }))}
     />
   );

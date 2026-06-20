@@ -6,6 +6,12 @@ import { toast } from "sonner";
 import { Palmtree, Plus, Plane, Check, Luggage } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { startVacation, closeVacation, addVacationExpense } from "@/app/dashboard/actions";
 import { CATEGORIES } from "@/lib/constants";
 import { formatEUR } from "@/lib/format";
@@ -38,6 +44,7 @@ interface ClosedVac {
   txCount: number;
   start_date: string;
   end_date: string | null;
+  expenses: ExpenseRow[];
 }
 
 function fmtDay(iso: string) {
@@ -51,6 +58,8 @@ export function VacationsView({
   active: ActiveVac | null;
   closed: ClosedVac[];
 }) {
+  const [detail, setDetail] = React.useState<ClosedVac | null>(null);
+
   return (
     <div className="space-y-6">
       {active ? (
@@ -76,7 +85,11 @@ export function VacationsView({
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {closed.map((v) => (
-              <div key={v.id} className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+              <button
+                key={v.id}
+                onClick={() => setDetail(v)}
+                className="rounded-3xl border border-border/60 bg-card p-6 text-left shadow-sm transition-transform hover:-translate-y-0.5"
+              >
                 <div className="flex items-center justify-between">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.peachSoft, color: PALETTE.peachInk }}>
                     <Plane className="h-5 w-5" />
@@ -97,11 +110,63 @@ export function VacationsView({
                   </div>
                   <p className="text-xs text-muted-foreground">{v.txCount} gastos · presup. {formatEUR(v.budget)}</p>
                 </div>
-              </div>
+                <p className="mt-3 text-xs font-semibold text-primary">Ver detalles →</p>
+              </button>
             ))}
           </div>
         </section>
       )}
+
+      {/* Detalle de un viaje cerrado */}
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="sm:max-w-md">
+          {detail && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.peachSoft, color: PALETTE.peachInk }}>
+                    <Plane className="h-5 w-5" />
+                  </span>
+                  {detail.name}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-end justify-between rounded-2xl bg-muted/60 px-4 py-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Total del viaje</p>
+                    <p className="text-2xl font-extrabold text-foreground">{formatEUR(detail.spent)}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtDay(detail.start_date)}{detail.end_date && ` – ${fmtDay(detail.end_date)}`} · presup. {formatEUR(detail.budget)}
+                  </p>
+                </div>
+
+                {detail.expenses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Este viaje no tiene gastos registrados.</p>
+                ) : (
+                  <ul className="max-h-72 divide-y divide-border/60 overflow-y-auto">
+                    {detail.expenses.map((e) => (
+                      <li key={e.id} className="flex items-center gap-3 py-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                          <CategoryIcon category={e.category} className="h-[18px] w-[18px]" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {fmtDay(e.occurred_at)}
+                            {e.notas ? ` · ${e.notas}` : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-bold text-foreground">{formatEUR(-e.amount, { sign: true })}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -109,10 +174,10 @@ export function VacationsView({
 function ActiveCard({ vac }: { vac: ActiveVac }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
+  const [confirming, setConfirming] = React.useState(false);
   const remaining = vac.budget - vac.spent;
 
   async function close() {
-    if (!confirm(`¿Cerrar "${vac.name}"? Se añadirá el total (${formatEUR(vac.spent)}) a tus movimientos generales como gasto "Vacaciones".`)) return;
     setPending(true);
     const res = await closeVacation(vac.id);
     setPending(false);
@@ -149,13 +214,37 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
             {remaining >= 0 ? `Te quedan ${formatEUR(remaining)}` : `Te has pasado ${formatEUR(-remaining)}`} · {vac.txCount} gastos
           </p>
 
-          <button
-            disabled={pending}
-            onClick={close}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 disabled:opacity-60"
-          >
-            <Check className="h-4 w-4" /> Cerrar viaje y contabilizar
-          </button>
+          {!confirming ? (
+            <button
+              onClick={() => setConfirming(true)}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
+            >
+              <Check className="h-4 w-4" /> Cerrar viaje y contabilizar
+            </button>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-border/70 bg-white/80 p-4 backdrop-blur-sm">
+              <p className="text-sm font-semibold text-foreground">¿Cerrar &ldquo;{vac.name}&rdquo;?</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Se añadirá el total ({formatEUR(vac.spent)}) a tus movimientos generales como gasto &ldquo;Vacaciones&rdquo;.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  disabled={pending}
+                  onClick={close}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  <Check className="h-4 w-4" /> Sí, cerrar
+                </button>
+                <button
+                  disabled={pending}
+                  onClick={() => setConfirming(false)}
+                  className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

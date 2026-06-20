@@ -110,9 +110,9 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
   const src = SOURCE[row.source] ?? SOURCE.manual;
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
+  const [confirming, setConfirming] = React.useState(false);
 
   async function remove() {
-    if (!confirm("¿Eliminar este movimiento? Esta acción no se puede deshacer.")) return;
     setPending(true);
     const res = await deleteTransaction(row.id);
     setPending(false);
@@ -159,13 +159,40 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
           )}
         </div>
 
-        <button
-          disabled={pending}
-          onClick={remove}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-[#C2496B] transition-colors hover:bg-destructive/20 disabled:opacity-60"
-        >
-          <Trash2 className="h-4 w-4" /> Eliminar movimiento
-        </button>
+        {!confirming ? (
+          <button
+            onClick={() => setConfirming(true)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-[#C2496B] transition-colors hover:bg-destructive/20"
+          >
+            <Trash2 className="h-4 w-4" /> Eliminar movimiento
+          </button>
+        ) : (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+            <p className="text-sm font-semibold text-foreground">
+              ¿Eliminar este movimiento?
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {row.merchant ?? row.description ?? row.cat.label} ·{" "}
+              {formatEUR(row.type === "income" ? row.amount : -row.amount, { sign: true })}. Esta acción no se puede deshacer.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                disabled={pending}
+                onClick={remove}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#C2496B] px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
+              >
+                <Trash2 className="h-4 w-4" /> Sí, eliminar
+              </button>
+              <button
+                disabled={pending}
+                onClick={() => setConfirming(false)}
+                className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
