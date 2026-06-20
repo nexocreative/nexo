@@ -22,6 +22,16 @@ export function formatEURCompact(amount: number): string {
   }).format(amount);
 }
 
+/** Etiqueta corta para el eje Y de las gráficas: muestra el valor real
+ *  (ej. "150 €") y usa "k" solo a partir de 1.000 (ej. "1,5k €"). */
+export function formatAxisEUR(v: number): string {
+  if (Math.abs(v) >= 1000) {
+    const k = v / 1000;
+    return `${Number.isInteger(k) ? k : k.toFixed(1).replace(".", ",")}k €`;
+  }
+  return `${Math.round(v)} €`;
+}
+
 /** "YYYY-MM" del mes de una fecha. */
 export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
