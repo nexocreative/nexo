@@ -24,6 +24,8 @@ const txSchema = z.object({
   occurred_at: z.string().optional(),
   source: z.enum(["manual", "photo", "voice", "chat"]).default("manual"),
   vacation_id: z.string().uuid().nullable().optional(),
+  receipt_url: z.string().max(400).nullable().optional(),
+  ai_confidence: z.coerce.number().min(0).max(1).nullable().optional(),
 });
 
 export async function createTransaction(input: unknown): Promise<ActionResult> {
@@ -43,6 +45,8 @@ export async function createTransaction(input: unknown): Promise<ActionResult> {
     occurred_at: d.occurred_at || new Date().toISOString().slice(0, 10),
     source: d.source,
     vacation_id: d.vacation_id ?? null,
+    receipt_url: d.receipt_url ?? null,
+    ai_confidence: d.ai_confidence ?? null,
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard", "layout");

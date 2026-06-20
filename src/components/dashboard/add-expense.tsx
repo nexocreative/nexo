@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Mic, PenLine, Receipt, Sparkles, Check } from "lucide-react";
+import { Camera, Mic, PenLine, Receipt, Sparkles, Check, Upload, Loader2 } from "lucide-react";
 import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import { createTransaction } from "@/app/dashboard/actions";
@@ -33,23 +33,58 @@ export function AddExpense() {
   const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [detected, setDetected] = React.useState(false);
   const [pending, setPending] = React.useState(false);
+  const [analyzing, setAnalyzing] = React.useState(false);
+  const [receiptPath, setReceiptPath] = React.useState<string | null>(null);
+  const [preview, setPreview] = React.useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
 
   function pickMethod(m: Method) {
     setMethod(m);
     setDetected(false);
+    setReceiptPath(null);
+    setPreview(null);
     if (m === "manual") {
       setMerchant("");
       setAmount("");
     }
   }
 
+  // Foto ticket real: sube la imagen a /api/ticket (GPT-4o Vision).
+  async function analyzePhoto(file: File) {
+    setPreview(URL.createObjectURL(file));
+    setAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/ticket", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo analizar el ticket");
+        return;
+      }
+      const d = json.data;
+      if (d.comercio) setMerchant(d.comercio);
+      if (d.importe) setAmount(String(d.importe));
+      if (d.categoria) setCategory(d.categoria);
+      if (d.fecha) setDate(d.fecha);
+      setReceiptPath(json.receiptPath ?? null);
+      setDetected(true);
+      toast.success("Ticket analizado con IA · revisa los datos");
+    } catch {
+      toast.error("Error de conexión al analizar el ticket");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  // Por voz: simulado (pendiente de integrar Whisper).
   function simulate() {
-    const data = method === "photo" ? MOCK.photo : MOCK.voice;
+    const data = MOCK.voice;
     setMerchant(data.merchant);
     setAmount(data.amount);
     setCategory(data.category);
     setDetected(true);
-    toast.success(method === "photo" ? "Ticket analizado con IA" : "Voz transcrita con IA");
+    toast.success("Voz transcrita con IA (demo)");
   }
 
   async function confirm() {
@@ -65,6 +100,7 @@ export function AddExpense() {
       merchant: merchant || undefined,
       occurred_at: date,
       source: method,
+      receipt_url: receiptPath,
     });
     setPending(false);
     if (res.ok) {
@@ -103,25 +139,48 @@ export function AddExpense() {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Formulario / captura */}
         <section className="space-y-5">
-          {showSimulate ? (
+          {showSimulate && method === "photo" ? (
             <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) analyzePhoto(f);
+                }}
+              />
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
-                {method === "photo" ? <Camera className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+                {analyzing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-6 w-6" />}
               </span>
               <p className="mt-4 text-sm font-semibold text-foreground">
-                {method === "photo" ? "Sube o haz una foto del ticket" : "Pulsa y di tu gasto en alto"}
+                {analyzing ? "Analizando el ticket con IA…" : "Sube o haz una foto del ticket"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {method === "photo"
-                  ? "GPT-4o Vision extraerá comercio, importe, fecha y categoría."
-                  : "Whisper transcribe y GPT-4o estructura los campos."}
+                GPT-4o Vision extraerá comercio, importe, fecha y categoría.
               </p>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={analyzing}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                <Upload className="h-4 w-4" /> {analyzing ? "Procesando…" : "Subir / hacer foto"}
+              </button>
+            </div>
+          ) : showSimulate && method === "voice" ? (
+            <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+                <Mic className="h-6 w-6" />
+              </span>
+              <p className="mt-4 text-sm font-semibold text-foreground">Pulsa y di tu gasto en alto</p>
+              <p className="mt-1 text-xs text-muted-foreground">Whisper transcribe y GPT-4o estructura los campos (demo).</p>
               <button
                 onClick={simulate}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                <Sparkles className="h-4 w-4" />
-                {method === "photo" ? "Analizar ticket (demo IA)" : "Transcribir voz (demo IA)"}
+                <Sparkles className="h-4 w-4" /> Transcribir voz (demo)
               </button>
             </div>
           ) : (
@@ -197,9 +256,14 @@ export function AddExpense() {
                   {amount ? formatEUR(Number(amount)) : "—"}
                 </p>
               </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70" style={{ color: PALETTE.lilaInk }}>
-                <Receipt className="h-5 w-5" />
-              </span>
+              {preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview} alt="Ticket" className="h-12 w-12 rounded-xl object-cover" />
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70" style={{ color: PALETTE.lilaInk }}>
+                  <Receipt className="h-5 w-5" />
+                </span>
+              )}
             </div>
             <div className="space-y-4 p-6">
               <div className="grid grid-cols-2 gap-4">

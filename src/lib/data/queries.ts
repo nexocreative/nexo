@@ -244,6 +244,21 @@ export async function getMovements(
   const income = sum(transactions.filter((t) => t.type === "income"));
   const expense = sum(transactions.filter((t) => t.type === "expense"));
 
+  // Firma las rutas de los tickets guardados en Storage (bucket privado) para
+  // poder mostrarlos en el detalle del movimiento.
+  const receiptPaths = transactions
+    .map((t) => t.receipt_url)
+    .filter((u): u is string => !!u && !u.startsWith("http"));
+  if (receiptPaths.length > 0) {
+    const { data: signed } = await supabaseAdmin()
+      .storage.from("receipts")
+      .createSignedUrls(receiptPaths, 3600);
+    const map = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+    for (const t of transactions) {
+      if (t.receipt_url && map.has(t.receipt_url)) t.receipt_url = map.get(t.receipt_url) ?? null;
+    }
+  }
+
   const monthOptions = Array.from({ length: 6 }, (_, i) => {
     const d = subMonths(startOfMonth(now), i);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
