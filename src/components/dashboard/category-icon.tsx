@@ -7,6 +7,7 @@ import {
   Pill,
   Home,
   Shirt,
+  Palmtree,
   Package,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const ICONS: Record<string, LucideIcon> = {
   Pill,
   Home,
   Shirt,
+  Palmtree,
   Package,
 };
 

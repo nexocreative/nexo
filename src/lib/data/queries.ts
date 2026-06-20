@@ -127,12 +127,14 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
         .from("transactions")
         .select("*")
         .eq("user_id", userId)
+        .is("vacation_id", null)
         .gte("occurred_at", start)
         .lte("occurred_at", end),
       supabaseAdmin()
         .from("transactions")
         .select("*")
         .eq("user_id", userId)
+        .is("vacation_id", null)
         .order("occurred_at", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(5),
@@ -220,6 +222,7 @@ export async function getMovements(
     .from("transactions")
     .select("*")
     .eq("user_id", userId)
+    .is("vacation_id", null)
     .gte("occurred_at", start)
     .lte("occurred_at", end)
     .order("occurred_at", { ascending: false })
@@ -288,6 +291,7 @@ export async function getLimits(userId: string): Promise<LimitsData> {
       .select("*")
       .eq("user_id", userId)
       .eq("type", "expense")
+      .is("vacation_id", null)
       .gte("occurred_at", start)
       .lte("occurred_at", end),
     getProfile(userId),
@@ -341,6 +345,7 @@ export async function getCharts(userId: string): Promise<ChartsData> {
       .from("transactions")
       .select("*")
       .eq("user_id", userId)
+      .is("vacation_id", null)
       .gte("occurred_at", from),
     getProfile(userId),
   ]);
@@ -461,6 +466,7 @@ export async function getJuntos(userId: string): Promise<JuntosData> {
       .from("transactions")
       .select("*")
       .in("user_id", [userId, ps.partner.id])
+      .is("vacation_id", null)
       .gte("occurred_at", from);
     const all = (tx as Transaction[]) ?? [];
     consolidated = Array.from({ length: 6 }, (_, i) => {
@@ -508,14 +514,34 @@ export async function getJuntos(userId: string): Promise<JuntosData> {
 // Vacaciones
 // ---------------------------------------------------------------------------
 
+export interface VacationExpenseView {
+  id: string;
+  concepto: string | null;
+  notas: string | null;
+  category: string | null;
+  amount: number;
+  occurred_at: string;
+}
 export interface VacationView extends VacationPeriod {
   spent: number;
   pct: number;
   txCount: number;
+  expenses: VacationExpenseView[];
 }
 export interface VacationsData {
   active: VacationView | null;
   closed: VacationView[];
+}
+
+interface VacTx {
+  id: string;
+  vacation_id: string;
+  type: string;
+  amount: number;
+  merchant: string | null;
+  description: string | null;
+  category: string | null;
+  occurred_at: string;
 }
 
 export async function getVacations(userId: string): Promise<VacationsData> {
@@ -530,13 +556,14 @@ export async function getVacations(userId: string): Promise<VacationsData> {
 
   const { data: tx } = await supabaseAdmin()
     .from("transactions")
-    .select("amount, vacation_id, type")
+    .select("id, vacation_id, type, amount, merchant, description, category, occurred_at")
     .eq("user_id", userId)
     .in(
       "vacation_id",
       list.map((v) => v.id),
-    );
-  const vtx = (tx as { amount: number; vacation_id: string; type: string }[]) ?? [];
+    )
+    .order("occurred_at", { ascending: false });
+  const vtx = (tx as VacTx[]) ?? [];
 
   const enrich = (v: VacationPeriod): VacationView => {
     const rows = vtx.filter((t) => t.vacation_id === v.id && t.type === "expense");
@@ -547,6 +574,14 @@ export async function getVacations(userId: string): Promise<VacationsData> {
       spent,
       pct: budget > 0 ? Math.round((spent / budget) * 100) : 0,
       txCount: rows.length,
+      expenses: rows.map((r) => ({
+        id: r.id,
+        concepto: r.merchant,
+        notas: r.description,
+        category: r.category,
+        amount: Number(r.amount),
+        occurred_at: r.occurred_at,
+      })),
     };
   };
 

@@ -12,6 +12,7 @@ export type CategoryKey =
   | "salud"
   | "hogar"
   | "ropa"
+  | "vacaciones"
   | "otros";
 
 export interface CategoryDef {
@@ -30,6 +31,7 @@ export const CATEGORIES: CategoryDef[] = [
   { key: "salud", label: "Salud", icon: "Pill" },
   { key: "hogar", label: "Hogar", icon: "Home" },
   { key: "ropa", label: "Ropa", icon: "Shirt" },
+  { key: "vacaciones", label: "Vacaciones", icon: "Palmtree" },
   { key: "otros", label: "Otros", icon: "Package" },
 ];
 

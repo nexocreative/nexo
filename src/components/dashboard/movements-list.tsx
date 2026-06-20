@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { deleteTransaction } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
@@ -96,15 +99,30 @@ export function MovementsList({ rows }: { rows: MovementRow[] }) {
 
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="sm:max-w-md">
-          {open && <Detail row={open} />}
+          {open && <Detail row={open} onClose={() => setOpen(null)} />}
         </DialogContent>
       </Dialog>
     </>
   );
 }
 
-function Detail({ row }: { row: MovementRow }) {
+function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
   const src = SOURCE[row.source] ?? SOURCE.manual;
+  const router = useRouter();
+  const [pending, setPending] = React.useState(false);
+
+  async function remove() {
+    if (!confirm("¿Eliminar este movimiento? Esta acción no se puede deshacer.")) return;
+    setPending(true);
+    const res = await deleteTransaction(row.id);
+    setPending(false);
+    if (res.ok) {
+      toast.success("Movimiento eliminado");
+      onClose();
+      router.refresh();
+    } else toast.error(res.error);
+  }
+
   return (
     <>
       <DialogHeader>
@@ -140,6 +158,14 @@ function Detail({ row }: { row: MovementRow }) {
             "Sin ticket adjunto"
           )}
         </div>
+
+        <button
+          disabled={pending}
+          onClick={remove}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-[#C2496B] transition-colors hover:bg-destructive/20 disabled:opacity-60"
+        >
+          <Trash2 className="h-4 w-4" /> Eliminar movimiento
+        </button>
       </div>
     </>
   );

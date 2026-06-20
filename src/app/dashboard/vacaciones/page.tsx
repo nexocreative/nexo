@@ -17,6 +17,8 @@ export default async function VacacionesPage() {
               pct: v.active.pct,
               txCount: v.active.txCount,
               start_date: v.active.start_date,
+              end_date: v.active.end_date,
+              expenses: v.active.expenses,
             }
           : null
       }

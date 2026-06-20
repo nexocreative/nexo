@@ -38,7 +38,17 @@ export default async function MovimientosPage({
     .reduce((a, r) => a + Number(r.amount), 0);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Link
+          href="/dashboard/anadir"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
+        >
+          <Plus className="h-4 w-4" /> Añadir gasto
+        </Link>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
       <div className="flex flex-col gap-6 lg:col-span-2">
         {/* Resumen del mes */}
         <div className="grid grid-cols-2 gap-4">
@@ -133,6 +143,7 @@ export default async function MovimientosPage({
             <Plus className="h-4 w-4" /> Añadir movimiento
           </Link>
         </section>
+      </div>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { monthKey } from "@/lib/format";
 
 const CATEGORY_KEYS = [
   "supermercado", "restaurantes", "transporte", "ocio", "suscripciones",
-  "salud", "hogar", "ropa", "otros",
+  "salud", "hogar", "ropa", "vacaciones", "otros",
 ] as const;
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -44,6 +44,20 @@ export async function createTransaction(input: unknown): Promise<ActionResult> {
     source: d.source,
     vacation_id: d.vacation_id ?? null,
   });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/** Elimina un movimiento (gasto o ingreso) del usuario. */
+export async function deleteTransaction(id: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  if (!id) return { ok: false, error: "ID no válido" };
+  const { error } = await supabaseAdmin()
+    .from("transactions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard", "layout");
   return { ok: true };
@@ -262,6 +276,7 @@ export async function unlinkPartner(): Promise<ActionResult> {
 export async function startVacation(input: {
   name: string;
   budget: number;
+  start_date?: string;
   end_date?: string;
 }): Promise<ActionResult> {
   const userId = await requireUserId();
@@ -271,6 +286,7 @@ export async function startVacation(input: {
     user_id: userId,
     name,
     budget: Number(input.budget) || 0,
+    start_date: input.start_date || new Date().toISOString().slice(0, 10),
     end_date: input.end_date || null,
     status: "active",
   });
@@ -279,28 +295,98 @@ export async function startVacation(input: {
   return { ok: true };
 }
 
+/** Añade un gasto interno a un proyecto de vacaciones (no cuenta en la
+ *  contabilidad general hasta que se cierra el viaje). */
+const vacExpenseSchema = z.object({
+  vacation_id: z.string().uuid(),
+  concepto: z.string().trim().min(1, "El concepto es obligatorio").max(120),
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  occurred_at: z.string().optional(),
+  category: z.enum(CATEGORY_KEYS).nullable().optional(),
+  notas: z.string().trim().max(280).optional(),
+});
+
+export async function addVacationExpense(input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = vacExpenseSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+
+  // Verifica que el viaje pertenece al usuario y está activo.
+  const { data: vac } = await supabaseAdmin()
+    .from("vacation_periods")
+    .select("id, status")
+    .eq("id", d.vacation_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!vac) return { ok: false, error: "Proyecto de vacaciones no encontrado" };
+  if (vac.status !== "active") return { ok: false, error: "El viaje ya está cerrado" };
+
+  const { error } = await supabaseAdmin().from("transactions").insert({
+    user_id: userId,
+    type: "expense",
+    amount: d.amount,
+    category: d.category ?? null,
+    merchant: d.concepto,
+    description: d.notas || null,
+    occurred_at: d.occurred_at || new Date().toISOString().slice(0, 10),
+    source: "manual",
+    vacation_id: d.vacation_id,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/vacaciones");
+  return { ok: true };
+}
+
 export async function closeVacation(id: string): Promise<ActionResult> {
   const userId = await requireUserId();
+
+  const { data: vac } = await supabaseAdmin()
+    .from("vacation_periods")
+    .select("id, name, status")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!vac) return { ok: false, error: "Proyecto de vacaciones no encontrado" };
+  if (vac.status !== "active") return { ok: false, error: "El viaje ya está cerrado" };
+
   const { data: vtx } = await supabaseAdmin()
     .from("transactions")
-    .select("amount, type, category")
+    .select("amount, type")
     .eq("user_id", userId)
     .eq("vacation_id", id);
-  const rows = (vtx as { amount: number; type: string; category: string | null }[]) ?? [];
-  const spent = rows
-    .filter((r) => r.type === "expense")
-    .reduce((a, r) => a + Number(r.amount), 0);
-  const summary = {
-    spent,
-    count: rows.filter((r) => r.type === "expense").length,
-    closed_at: new Date().toISOString(),
-  };
+  const rows = (vtx as { amount: number; type: string }[]) ?? [];
+  const expenses = rows.filter((r) => r.type === "expense");
+  const spent = expenses.reduce((a, r) => a + Number(r.amount), 0);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Añade el TOTAL como un único movimiento general con etiqueta "Vacaciones"
+  // (vacation_id null → sí cuenta en la contabilidad general).
+  if (spent > 0) {
+    const { error: txErr } = await supabaseAdmin().from("transactions").insert({
+      user_id: userId,
+      type: "expense",
+      amount: spent,
+      category: "vacaciones",
+      merchant: `Vacaciones · ${vac.name}`,
+      description: `Total del viaje "${vac.name}" (${expenses.length} gastos)`,
+      occurred_at: today,
+      source: "manual",
+      vacation_id: null,
+    });
+    if (txErr) return { ok: false, error: txErr.message };
+  }
+
+  const summary = { spent, count: expenses.length, closed_at: new Date().toISOString() };
   const { error } = await supabaseAdmin()
     .from("vacation_periods")
-    .update({ status: "closed", end_date: new Date().toISOString().slice(0, 10), summary })
+    .update({ status: "closed", end_date: today, summary })
     .eq("id", id)
     .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard/vacaciones");
+
+  revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
