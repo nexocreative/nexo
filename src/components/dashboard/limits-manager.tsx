@@ -23,7 +23,7 @@ export function LimitsManager({
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
         <GlobalCard global={global} />
 
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
@@ -54,7 +54,7 @@ export function LimitsManager({
         </section>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <AlertsLegend />
       </div>
     </div>

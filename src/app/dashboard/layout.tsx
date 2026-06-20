@@ -16,7 +16,7 @@ export default async function DashboardLayout({
   return (
     <div className="nexo-canvas flex min-h-screen">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <Topbar
           name={session.user.name}
           email={session.user.email}

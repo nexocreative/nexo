@@ -49,7 +49,7 @@ export default async function MovimientosPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-      <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
         {/* Resumen del mes */}
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
@@ -76,7 +76,7 @@ export default async function MovimientosPage({
       </div>
 
       {/* Gastos fijos */}
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-primary">

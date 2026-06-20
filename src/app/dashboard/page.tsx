@@ -15,7 +15,7 @@ export default async function DashboardPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {/* Columna principal */}
-      <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
         {/* Balance del mes */}
         <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-6">

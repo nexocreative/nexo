@@ -31,7 +31,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col gap-8">
       <Link href="/dashboard" onClick={onNavigate} className="px-1">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-nexo.svg" alt="Nexo" className="h-9 w-auto" />
+        <img src="/logo-nexo.svg" alt="Nexo" width={120} height={39} className="block h-auto w-[120px] max-w-full" />
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
