@@ -1,109 +1,391 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   Camera,
   Mic,
-  PieChart,
-  Target,
+  PiggyBank,
   Bell,
-  Plane,
+  BarChart3,
+  Users,
+  ArrowRight,
+  Check,
+  Sparkles,
+  Quote,
+  ChevronDown,
 } from "lucide-react";
+import { DottedSurface } from "@/components/ui/dotted-surface";
+import { PALETTE } from "@/lib/constants";
 
 const features = [
   {
     icon: Camera,
     title: "Registro por foto",
-    description:
-      "Haz una foto al ticket y la IA extrae importe, comercio y categoría automáticamente.",
+    description: "Haz una foto al ticket y la IA extrae importe, comercio y categoría. Tú no tocas nada.",
   },
   {
     icon: Mic,
     title: "Registro por voz",
-    description:
-      "Dicta tus gastos e ingresos. Whisper transcribe y GPT-4o interpreta los datos.",
+    description: "Dicta un gasto mientras vas por la calle. Whisper lo transcribe y GPT-4o lo ordena.",
   },
   {
-    icon: PieChart,
-    title: "Gráficas claras",
-    description:
-      "Ingresos vs gastos, gasto por categoría, tendencias y proyección de cierre de mes.",
+    icon: PiggyBank,
+    title: "Ahorro por categorías",
+    description: "Aparta cada mes para emergencias, vacaciones o lo que quieras. Y ve crecer tu colchón.",
   },
   {
     icon: Bell,
     title: "Límites y alertas",
-    description:
-      "Avisos progresivos al 75%, 90% y bloqueo visual al 100% de tu presupuesto.",
+    description: "Avisos antes de pasarte del presupuesto: al 75%, al 90% y aviso visual al 100%.",
   },
   {
-    icon: Target,
-    title: "Objetivo compartido",
-    description:
-      "Ahorro conjunto con fecha límite, progress ring y cálculo del ritmo necesario.",
+    icon: BarChart3,
+    title: "Gráficas claras",
+    description: "Ingresos vs gastos, gasto por categoría y tendencias. Entiende tu dinero de un vistazo.",
   },
   {
-    icon: Plane,
-    title: "Modo vacaciones",
-    description:
-      "Presupuesto aparte para tus viajes, agrupado en una cápsula con resumen automático.",
+    icon: Users,
+    title: "En pareja",
+    description: "Vista conjunta del dinero de los dos, con consentimiento. Las cuentas claras de verdad.",
+  },
+];
+
+const testimonials = [
+  {
+    quote: "Por fin sé en qué se me va el sueldo. Le hago una foto al ticket y a otra cosa.",
+    name: "Lucía",
+    role: "Diseñadora · 29",
+  },
+  {
+    quote: "Apuntar los gastos por voz mientras conduzco es magia. Ya no se me olvida nada.",
+    name: "Diego",
+    role: "Comercial · 34",
+  },
+  {
+    quote: "Mi pareja y yo dejamos de discutir por dinero. Ahora lo vemos todo en el mismo sitio.",
+    name: "Marta",
+    role: "Enfermera · 31",
+  },
+];
+
+const faqs = [
+  {
+    q: "¿Cuánto cuesta Nexo?",
+    a: "Puedes empezar gratis y registrar tus gastos sin límite. Sin tarjeta, sin compromiso.",
+  },
+  {
+    q: "¿Cómo registra la IA mis gastos?",
+    a: "Con una foto del ticket (GPT-4o Vision lee los datos) o por voz (Whisper transcribe y GPT-4o estructura importe, comercio y categoría). Siempre puedes revisarlo antes de guardar.",
+  },
+  {
+    q: "¿Mis datos están seguros?",
+    a: "Sí. Cada usuario solo ve su propia información y la vista en pareja requiere consentimiento explícito de ambas personas.",
+  },
+  {
+    q: "¿Puedo usarlo con mi pareja?",
+    a: "Claro. Con la vista 'Juntos' veis el dinero de los dos de forma consolidada, manteniendo cada uno su privacidad cuando queráis.",
+  },
+  {
+    q: "¿Funciona en el móvil?",
+    a: "Nexo está pensado para el móvil y funciona desde el navegador. Puedes añadirlo a tu pantalla de inicio y usarlo como una app más.",
   },
 ];
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col">
-      <header className="container mx-auto flex items-center justify-between px-4 py-6">
-        <span className="text-xl font-bold tracking-tight">Nexo</span>
-        <nav className="flex items-center gap-2">
-          <Button variant="ghost" asChild>
-            <Link href="/login">Entrar</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/login">Empezar</Link>
-          </Button>
-        </nav>
+    <main className="flex min-h-screen flex-col bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 lg:px-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-nexo.svg" alt="Nexo" width={104} height={34} className="h-auto w-[104px]" />
+          <nav className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
+            >
+              Empezar gratis
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <section className="container mx-auto flex flex-1 flex-col items-center justify-center px-4 py-16 text-center">
-        <span className="mb-4 rounded-full border px-3 py-1 text-sm text-muted-foreground">
-          Tus finanzas, sin esfuerzo
-        </span>
-        <h1 className="max-w-3xl text-balance text-4xl font-bold tracking-tight sm:text-6xl">
-          Controla tus gastos hablando o sacando una foto
-        </h1>
-        <p className="mt-6 max-w-2xl text-balance text-lg text-muted-foreground">
-          Nexo registra tus gastos e ingresos con IA, te avisa antes de pasarte
-          del presupuesto y te ayuda a alcanzar tus objetivos de ahorro.
-        </p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button size="lg" asChild>
-            <Link href="/login">Crear cuenta gratis</Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/dashboard">Ver demo</Link>
-          </Button>
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden nexo-hero-gradient">
+        <DottedSurface />
+        {/* Glow suave central */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-0 -z-0 h-[420px] w-[820px] -translate-x-1/2 rounded-full opacity-70 blur-[90px]"
+          style={{ background: "radial-gradient(ellipse at center, rgba(255,255,255,0.85), transparent 60%)" }}
+        />
+        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 py-24 text-center lg:py-32">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/60 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
+            <Sparkles className="h-4 w-4" style={{ color: PALETTE.lilaInk }} />
+            Finanzas personales con IA
+          </span>
+          <h1 className="mt-6 text-balance text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
+            Controla tu dinero hablando o con una foto
+          </h1>
+          <p className="mt-6 max-w-2xl text-balance text-lg text-foreground/80">
+            Nexo registra tus gastos con IA, te avisa antes de pasarte del presupuesto y te ayuda a
+            ahorrar cada mes. Solo o en pareja.
+          </p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground px-7 py-3.5 text-base font-semibold text-background shadow-lg transition-transform hover:-translate-y-0.5"
+            >
+              Crear cuenta gratis <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-foreground/15 bg-white/70 px-7 py-3.5 text-base font-semibold text-foreground backdrop-blur-sm transition-colors hover:bg-white"
+            >
+              Ver demo
+            </Link>
+          </div>
+          <p className="mt-5 text-sm font-medium text-foreground/60">
+            Sin tarjeta · Empieza en menos de un minuto
+          </p>
         </div>
       </section>
 
-      <section className="container mx-auto grid gap-6 px-4 pb-24 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map((feature) => (
-          <div
-            key={feature.title}
-            className="rounded-xl border bg-card p-6 text-left text-card-foreground"
-          >
-            <feature.icon className="h-6 w-6 text-primary" />
-            <h3 className="mt-4 font-semibold">{feature.title}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {feature.description}
-            </p>
-          </div>
-        ))}
+      {/* Punto de dolor */}
+      <section className="mx-auto max-w-3xl px-5 py-20 text-center lg:py-28">
+        <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+          Sabes lo que entra. No sabes a dónde va.
+        </h2>
+        <p className="mt-6 text-balance text-lg leading-relaxed text-muted-foreground">
+          Llegas a fin de mes y el dinero ha desaparecido. Apuntarlo todo en una hoja de cálculo
+          aguanta tres días. Y cada vez que toca hablar de dinero en pareja, acaba en discusión.
+          No es culpa tuya: la mayoría de apps de finanzas son un suplicio.{" "}
+          <span className="font-semibold text-foreground">Nexo es lo contrario.</span>
+        </p>
       </section>
 
-      <footer className="border-t py-6">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          Nexo · Hecho con Next.js, Supabase e IA
+      {/* Funcionalidades */}
+      <section className="bg-muted/40 py-20 lg:py-28">
+        <div className="mx-auto max-w-6xl px-5 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              Todo tu dinero, en una sola app
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Registrar, controlar y ahorrar. Sin hojas de cálculo, sin fricción.
+            </p>
+          </div>
+          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((f) => (
+              <div
+                key={f.title}
+                className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm transition-transform hover:-translate-y-1"
+              >
+                <span
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}
+                >
+                  <f.icon className="h-6 w-6" />
+                </span>
+                <h3 className="mt-5 text-lg font-bold text-foreground">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Opiniones */}
+      <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            Gente que ya respira tranquila
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Lo que dicen quienes dejaron el caos financiero atrás.
+          </p>
+        </div>
+        <div className="mt-14 grid gap-5 md:grid-cols-3">
+          {testimonials.map((t) => (
+            <figure
+              key={t.name}
+              className="flex flex-col rounded-3xl border border-border/60 bg-card p-7 shadow-sm"
+            >
+              <Quote className="h-7 w-7" style={{ color: PALETTE.lila }} />
+              <blockquote className="mt-4 flex-1 text-base leading-relaxed text-foreground">
+                “{t.quote}”
+              </blockquote>
+              <figcaption className="mt-6 flex items-center gap-3">
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+                  style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}
+                >
+                  {t.name[0]}
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-foreground">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.role}</p>
+                </div>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="bg-muted/40 py-20 lg:py-28">
+        <div className="mx-auto max-w-3xl px-5 lg:px-8">
+          <h2 className="text-center text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            Preguntas frecuentes
+          </h2>
+          <div className="mt-12 space-y-3">
+            {faqs.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-sm [&_summary::-webkit-details-marker]:hidden"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-foreground">
+                  {item.q}
+                  <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA final */}
+      <section className="mx-auto w-full max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
+        <div className="relative isolate overflow-hidden rounded-[2rem] nexo-hero-gradient px-6 py-16 text-center shadow-lg sm:px-12">
+          <DottedSurface />
+          <div className="relative z-10">
+            <h2 className="mx-auto max-w-2xl text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              Empieza hoy. Tu yo de fin de mes te lo agradecerá.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-balance text-lg text-foreground/80">
+              Crea tu cuenta gratis y registra tu primer gasto en menos de un minuto.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground px-7 py-3.5 text-base font-semibold text-background shadow-lg transition-transform hover:-translate-y-0.5"
+              >
+                Crear cuenta gratis <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/70">
+              <li className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: PALETTE.mintInk }} /> Gratis para empezar</li>
+              <li className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: PALETTE.mintInk }} /> Sin tarjeta</li>
+              <li className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: PALETTE.mintInk }} /> Tus datos, privados</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border/60 bg-background">
+        <div className="mx-auto max-w-6xl px-5 py-12 lg:px-8">
+          <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-xs">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-nexo.svg" alt="Nexo" width={104} height={34} className="h-auto w-[104px]" />
+              <p className="mt-4 text-sm text-muted-foreground">
+                Tus finanzas, sin esfuerzo. Registra con IA, controla tus límites y ahorra cada mes.
+              </p>
+              <div className="mt-5 flex items-center gap-3">
+                <a href="#" aria-label="Instagram" className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                  <InstagramIcon className="h-[18px] w-[18px]" />
+                </a>
+                <a href="#" aria-label="X" className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                  <XIcon className="h-4 w-4" />
+                </a>
+                <a href="#" aria-label="TikTok" className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                  <TikTokIcon className="h-[18px] w-[18px]" />
+                </a>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
+              <FooterCol
+                title="Producto"
+                links={[
+                  { label: "Funciones", href: "#" },
+                  { label: "Demo", href: "/dashboard" },
+                  { label: "Entrar", href: "/login" },
+                ]}
+              />
+              <FooterCol
+                title="Legal"
+                links={[
+                  { label: "Privacidad", href: "#" },
+                  { label: "Términos", href: "#" },
+                  { label: "Cookies", href: "#" },
+                ]}
+              />
+              <FooterCol
+                title="Soporte"
+                links={[
+                  { label: "Ayuda", href: "#" },
+                  { label: "Contacto", href: "#" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-6 text-sm text-muted-foreground sm:flex-row">
+            <p>© 2026 Nexo. Todos los derechos reservados.</p>
+            <p>Hecho con cariño para tus finanzas.</p>
+          </div>
         </div>
       </footer>
     </main>
+  );
+}
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+    </svg>
+  );
+}
+
+function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wide text-foreground">{title}</p>
+      <ul className="mt-4 space-y-2.5">
+        {links.map((l) => (
+          <li key={l.label}>
+            <Link href={l.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              {l.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
