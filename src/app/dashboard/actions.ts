@@ -67,6 +67,74 @@ export async function deleteTransaction(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+// --- Gastos / ingresos fijos (reglas recurrentes) --------------------------
+
+const recurringSchema = z.object({
+  type: z.enum(["expense", "income"]),
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  category: z.enum(CATEGORY_KEYS).nullable().optional(),
+  description: z.string().trim().min(1, "El concepto es obligatorio").max(120),
+  day_of_month: z.coerce.number().int().min(1).max(28),
+  active: z.boolean().optional(),
+});
+
+export async function createRecurring(input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = recurringSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  const { error } = await supabaseAdmin().from("recurring_rules").insert({
+    user_id: userId,
+    type: d.type,
+    amount: d.amount,
+    category: d.type === "income" ? null : d.category ?? "otros",
+    description: d.description,
+    day_of_month: d.day_of_month,
+    active: true,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+export async function updateRecurring(id: string, input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = recurringSchema.partial().safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  const patch: Record<string, unknown> = {};
+  if (d.type !== undefined) patch.type = d.type;
+  if (d.amount !== undefined) patch.amount = d.amount;
+  if (d.description !== undefined) patch.description = d.description;
+  if (d.day_of_month !== undefined) patch.day_of_month = d.day_of_month;
+  if (d.active !== undefined) patch.active = d.active;
+  if (d.category !== undefined) patch.category = d.type === "income" ? null : d.category;
+  const { error } = await supabaseAdmin()
+    .from("recurring_rules")
+    .update(patch)
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+export async function deleteRecurring(id: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("recurring_rules")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
 // --- Confirmación de nómina mensual ----------------------------------------
 
 export async function confirmNomina(input: {

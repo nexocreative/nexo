@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Plus, Repeat, ArrowDownRight, ArrowUpRight, Banknote } from "lucide-react";
+import { Plus, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { requireUserId, getMovements } from "@/lib/data/queries";
 import { MovementsFilters } from "@/components/dashboard/movements-filters";
 import { MovementsList, type MovementRow } from "@/components/dashboard/movements-list";
-import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { RecurringManager, type RecItem } from "@/components/dashboard/recurring-manager";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
@@ -33,9 +33,15 @@ export default async function MovimientosPage({
     cat: { key: t.cat.key, label: t.cat.label },
   }));
 
-  const fixedMonthly = data.recurring
-    .filter((r) => r.type === "expense" && r.active)
-    .reduce((a, r) => a + Number(r.amount), 0);
+  const recItems: RecItem[] = data.recurring.map((r) => ({
+    id: r.id,
+    type: r.type,
+    amount: Number(r.amount),
+    category: r.category,
+    description: r.description,
+    day_of_month: r.day_of_month,
+    active: r.active,
+  }));
 
   return (
     <div className="space-y-6">
@@ -49,101 +55,36 @@ export default async function MovimientosPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        {/* Resumen del mes */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: PALETTE.mintInk }}>
-              <ArrowUpRight className="h-4 w-4" /> Ingresos
-            </p>
-            <p className="mt-1.5 text-2xl font-extrabold text-foreground">{formatEUR(data.income)}</p>
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: PALETTE.peachInk }}>
-              <ArrowDownRight className="h-4 w-4" /> Gastos
-            </p>
-            <p className="mt-1.5 text-2xl font-extrabold text-foreground">{formatEUR(data.expense)}</p>
-          </div>
-        </div>
-
-        {/* Filtros + lista */}
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <MovementsFilters monthOptions={data.monthOptions} />
-          <div className="mt-5">
-            <MovementsList rows={rows} />
-          </div>
-        </section>
-      </div>
-
-      {/* Gastos fijos */}
-      <div className="flex min-w-0 flex-col gap-6">
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-primary">
-              <Repeat className="h-[18px] w-[18px]" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold text-foreground">Gastos fijos</h3>
-              <p className="text-xs text-muted-foreground">Recurrentes cada mes</p>
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
+          {/* Resumen del mes */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: PALETTE.mintInk }}>
+                <ArrowUpRight className="h-4 w-4" /> Ingresos
+              </p>
+              <p className="mt-1.5 text-2xl font-extrabold text-foreground">{formatEUR(data.income)}</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: PALETTE.peachInk }}>
+                <ArrowDownRight className="h-4 w-4" /> Gastos
+              </p>
+              <p className="mt-1.5 text-2xl font-extrabold text-foreground">{formatEUR(data.expense)}</p>
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl bg-muted/60 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Total mensual fijo
-            </p>
-            <p className="mt-0.5 text-xl font-extrabold text-foreground">{formatEUR(fixedMonthly)}</p>
-          </div>
+          {/* Filtros + lista */}
+          <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+            <MovementsFilters monthOptions={data.monthOptions} />
+            <div className="mt-5">
+              <MovementsList rows={rows} />
+            </div>
+          </section>
+        </div>
 
-          <ul className="mt-4 space-y-3">
-            {data.recurring
-              .filter((r) => r.type === "expense")
-              .map((r) => (
-                <li key={r.id} className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                    <CategoryIcon category={r.cat.key} className="h-[18px] w-[18px]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{r.description}</p>
-                    <p className="text-xs text-muted-foreground">Día {r.day_of_month} de cada mes</p>
-                  </div>
-                  <span className="text-sm font-bold text-foreground">{formatEUR(Number(r.amount))}</span>
-                </li>
-              ))}
-          </ul>
-
-          {data.recurring.filter((r) => r.type === "income").length > 0 && (
-            <>
-              <h4 className="mt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Ingresos fijos
-              </h4>
-              <ul className="mt-3 space-y-3">
-                {data.recurring
-                  .filter((r) => r.type === "income")
-                  .map((r) => (
-                    <li key={r.id} className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}>
-                        <Banknote className="h-[18px] w-[18px]" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{r.description}</p>
-                        <p className="text-xs text-muted-foreground">Día {r.day_of_month} · confirmación mensual</p>
-                      </div>
-                      <span className="text-sm font-bold" style={{ color: PALETTE.mintInk }}>{formatEUR(Number(r.amount))}</span>
-                    </li>
-                  ))}
-              </ul>
-            </>
-          )}
-
-          <Link
-            href="/dashboard/anadir"
-            className="mt-6 flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-          >
-            <Plus className="h-4 w-4" /> Añadir movimiento
-          </Link>
-        </section>
-      </div>
+        {/* Gastos fijos (gestionables) */}
+        <div className="flex min-w-0 flex-col gap-6">
+          <RecurringManager items={recItems} />
+        </div>
       </div>
     </div>
   );
