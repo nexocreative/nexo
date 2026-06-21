@@ -224,10 +224,10 @@ export default function HomePage() {
       {/* Showcase con DisplayCards */}
       <section className="overflow-hidden border-y border-border/60 bg-muted/40 py-20 lg:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-16 px-5 lg:grid-cols-2 lg:gap-10 lg:px-8">
-          <div className="flex min-h-[18rem] items-center justify-center lg:justify-start lg:pl-10">
+          <div className="order-2 flex min-h-[18rem] items-center justify-center lg:order-none lg:justify-start lg:pl-10">
             <DisplayCards cards={showcaseCards} />
           </div>
-          <div>
+          <div className="order-1 lg:order-none">
             <span className="text-sm font-bold uppercase tracking-wide" style={{ color: PALETTE.lilaInk }}>
               Registro sin fricción
             </span>
