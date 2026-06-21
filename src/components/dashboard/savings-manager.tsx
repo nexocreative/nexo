@@ -111,14 +111,14 @@ export function SavingsManager({ data }: { data: SavingsData }) {
       <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:sticky lg:top-6">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="text-base font-bold text-foreground">Categorías de ahorro</h3>
-            <p className="text-sm text-muted-foreground">Reparte tu ahorro y define un plan mensual.</p>
+            <h3 className="text-base font-bold text-foreground">Categorías</h3>
+            <p className="text-sm text-muted-foreground">Añade tu objetivo de ahorro</p>
           </div>
           <button
             onClick={() => setCatEditing("new")}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
           >
-            <Plus className="h-3.5 w-3.5" /> Categoría
+            <Plus className="h-3.5 w-3.5" /> Añadir
           </button>
         </div>
 
@@ -131,22 +131,9 @@ export function SavingsManager({ data }: { data: SavingsData }) {
               return (
                 <li key={c.id}>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {c.monthlyPlan > 0 ? `Plan ${formatEUR(c.monthlyPlan)}/mes` : "Sin plan mensual"}
-                        {" · "}Acumulado {formatEUR(c.accumulated)}
-                      </p>
-                    </div>
+                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">{c.name}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-foreground">{formatEUR(c.thisMonth)}</span>
-                      <button
-                        onClick={() => setContributeFor(c)}
-                        aria-label={`Aportar a ${c.name}`}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
                       <button
                         onClick={() => setCatEditing(c)}
                         aria-label={`Editar ${c.name}`}
