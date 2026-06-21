@@ -24,8 +24,27 @@ Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
 Reglas:
 - "categoria" DEBE ser exactamente uno de los valores permitidos; si dudas usa "otros".
 - "importe" es el TOTAL del ticket (no líneas sueltas), como número con punto decimal.
+- "fecha": usa el año que aparezca en el ticket. Si el año NO se ve con claridad, usa el AÑO ACTUAL. Nunca inventes años pasados; un ticket reciente casi siempre es de este año.
+- Si no puedes leer la fecha, déjala como "".
 - Si no puedes leer un dato, usa "" para textos, 0 para números y [] para items.
 - No incluyas texto fuera del JSON.`;
+
+/** Valida la fecha extraída: si es inválida o cae fuera de una ventana
+ *  razonable (más de ~18 meses atrás o en el futuro), usa la de hoy.
+ *  Evita que un año mal leído por la IA esconda el gasto en otro mes. */
+function sanitizeTicketDate(value: unknown): string {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return todayStr;
+  const d = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return todayStr;
+  const minDate = new Date(today);
+  minDate.setMonth(minDate.getMonth() - 18);
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 2);
+  if (d < minDate || d > maxDate) return todayStr;
+  return value;
+}
 
 export async function POST(req: Request) {
   const session = await getServerAuthSession();
@@ -63,7 +82,7 @@ export async function POST(req: Request) {
         {
           role: "user",
           content: [
-            { type: "text", text: "Extrae los datos de este ticket en JSON." },
+            { type: "text", text: `Hoy es ${new Date().toISOString().slice(0, 10)}. Extrae los datos de este ticket en JSON.` },
             { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
           ],
         },
@@ -97,7 +116,7 @@ export async function POST(req: Request) {
     data: {
       comercio: String(extracted.comercio ?? ""),
       importe: Number(extracted.importe) || 0,
-      fecha: typeof extracted.fecha === "string" && extracted.fecha ? extracted.fecha : null,
+      fecha: sanitizeTicketDate(extracted.fecha),
       categoria: category,
       items: Array.isArray(extracted.items) ? extracted.items : [],
     },
