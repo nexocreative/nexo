@@ -13,7 +13,45 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { DottedSurface } from "@/components/ui/dotted-surface";
+import DisplayCards from "@/components/ui/display-cards";
 import { PALETTE } from "@/lib/constants";
+
+const heroBg = {
+  backgroundColor: "hsl(var(--background))",
+  backgroundImage: `radial-gradient(55% 50% at 12% 8%, ${PALETTE.lilaSoft}, transparent 60%), radial-gradient(50% 45% at 92% 4%, ${PALETTE.mintSoft}, transparent 60%), radial-gradient(45% 45% at 75% 95%, ${PALETTE.peachSoft}, transparent 65%)`,
+};
+
+const showcaseCards = [
+  {
+    icon: <Camera className="size-4" />,
+    title: "Foto ticket",
+    description: "Mercadona · −48,20 €",
+    date: "Hace 2 min",
+    iconClassName: "bg-[#ECE9FB] text-[#5F54AE]",
+    titleClassName: "text-[#5F54AE]",
+    className:
+      "[grid-area:stack] hover:-translate-y-10 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-border before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-background/50 grayscale-[100%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0",
+  },
+  {
+    icon: <Mic className="size-4" />,
+    title: "Por voz",
+    description: "Café con Marta · −3,50 €",
+    date: "Hoy",
+    iconClassName: "bg-[#D8F3E7] text-[#2E8B6E]",
+    titleClassName: "text-[#2E8B6E]",
+    className:
+      "[grid-area:stack] translate-x-14 translate-y-9 hover:-translate-y-1 before:absolute before:w-[100%] before:outline-1 before:rounded-xl before:outline-border before:h-[100%] before:content-[''] before:bg-blend-overlay before:bg-background/50 grayscale-[100%] hover:before:opacity-0 before:transition-opacity before:duration-700 hover:grayscale-0 before:left-0 before:top-0",
+  },
+  {
+    icon: <PiggyBank className="size-4" />,
+    title: "Ahorro",
+    description: "Vacaciones · +200 €",
+    date: "Este mes",
+    iconClassName: "bg-[#ECE9FB] text-[#5F54AE]",
+    titleClassName: "text-[#5F54AE]",
+    className: "[grid-area:stack] translate-x-28 translate-y-[4.5rem] hover:translate-y-10",
+  },
+];
 
 const features = [
   {
@@ -77,7 +115,7 @@ const faqs = [
   },
   {
     q: "¿Mis datos están seguros?",
-    a: "Sí. Cada usuario solo ve su propia información y la vista en pareja requiere consentimiento explícito de ambas personas.",
+    a: "Sí. Cada persona solo ve su propia información y la vista en pareja requiere consentimiento explícito de ambas partes.",
   },
   {
     q: "¿Puedo usarlo con mi pareja?",
@@ -92,16 +130,18 @@ const faqs = [
 export default function HomePage() {
   return (
     <main className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 lg:px-8">
+      {/* Header flotante */}
+      <header className="sticky top-0 z-50 px-4 pt-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-2.5 shadow-lg shadow-foreground/5 backdrop-blur-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-nexo.svg" alt="Nexo" width={104} height={34} className="h-auto w-[104px]" />
-          <nav className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="rounded-xl px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-            >
+          <img src="/logo-nexo.svg" alt="Nexo" width={96} height={31} className="h-auto w-[96px]" />
+          <nav className="hidden items-center gap-1 md:flex">
+            <a href="#funciones" className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">Funciones</a>
+            <a href="#opiniones" className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">Opiniones</a>
+            <a href="#faq" className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">Preguntas</a>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="hidden rounded-xl px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted sm:block">
               Entrar
             </Link>
             <Link
@@ -110,30 +150,32 @@ export default function HomePage() {
             >
               Empezar gratis
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="relative isolate overflow-hidden nexo-hero-gradient">
+      <section className="relative isolate -mt-[72px] overflow-hidden pt-[72px]" style={heroBg}>
         <DottedSurface />
-        {/* Glow suave central */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-0 -z-0 h-[420px] w-[820px] -translate-x-1/2 rounded-full opacity-70 blur-[90px]"
-          style={{ background: "radial-gradient(ellipse at center, rgba(255,255,255,0.85), transparent 60%)" }}
-        />
         <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 py-24 text-center lg:py-32">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/60 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
             <Sparkles className="h-4 w-4" style={{ color: PALETTE.lilaInk }} />
-            Finanzas personales con IA
+            Finanzas con IA · solo o en pareja
           </span>
-          <h1 className="mt-6 text-balance text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
-            Controla tu dinero hablando o con una foto
+          <h1 className="mt-7 text-balance text-5xl font-extrabold leading-[1.02] tracking-tight text-foreground sm:text-7xl">
+            Haz una foto.
+            <br />
+            Nexo hace{" "}
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(110deg, ${PALETTE.lilaInk}, ${PALETTE.mintInk})` }}
+            >
+              las cuentas.
+            </span>
           </h1>
-          <p className="mt-6 max-w-2xl text-balance text-lg text-foreground/80">
-            Nexo registra tus gastos con IA, te avisa antes de pasarte del presupuesto y te ayuda a
-            ahorrar cada mes. Solo o en pareja.
+          <p className="mt-7 max-w-xl text-balance text-lg text-muted-foreground sm:text-xl">
+            Registra cada gasto por foto o por voz, controla tus límites y mira crecer tu ahorro mes a
+            mes. Las cuentas claras, sin esfuerzo.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -144,36 +186,79 @@ export default function HomePage() {
             </Link>
             <Link
               href="/dashboard"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-foreground/15 bg-white/70 px-7 py-3.5 text-base font-semibold text-foreground backdrop-blur-sm transition-colors hover:bg-white"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-foreground/15 bg-background/70 px-7 py-3.5 text-base font-semibold text-foreground backdrop-blur-sm transition-colors hover:bg-background"
             >
               Ver demo
             </Link>
           </div>
-          <p className="mt-5 text-sm font-medium text-foreground/60">
-            Sin tarjeta · Empieza en menos de un minuto
+          <p className="mt-5 text-sm font-medium text-muted-foreground">
+            Gratis para empezar · Sin tarjeta · Listo en un minuto
           </p>
         </div>
       </section>
 
       {/* Punto de dolor */}
-      <section className="mx-auto max-w-3xl px-5 py-20 text-center lg:py-28">
+      <section className="mx-auto max-w-3xl px-5 py-20 text-center lg:py-24">
         <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-          Sabes lo que entra. No sabes a dónde va.
+          ¿A dónde se va el dinero cada mes?
         </h2>
         <p className="mt-6 text-balance text-lg leading-relaxed text-muted-foreground">
-          Llegas a fin de mes y el dinero ha desaparecido. Apuntarlo todo en una hoja de cálculo
-          aguanta tres días. Y cada vez que toca hablar de dinero en pareja, acaba en discusión.
-          No es culpa tuya: la mayoría de apps de finanzas son un suplicio.{" "}
-          <span className="font-semibold text-foreground">Nexo es lo contrario.</span>
+          Llegas a fin de mes y no sabes en qué se fue. Apuntar gastos a mano aguanta tres días. Y
+          cada vez que toca hablar de dinero en pareja, acaba regular.{" "}
+          <span className="font-semibold text-foreground">Nexo convierte ese caos en claridad.</span>
         </p>
       </section>
 
+      {/* Showcase con DisplayCards */}
+      <section className="overflow-hidden border-y border-border/60 bg-muted/40 py-20 lg:py-28">
+        <div className="mx-auto grid max-w-6xl items-center gap-16 px-5 lg:grid-cols-2 lg:gap-10 lg:px-8">
+          <div className="flex min-h-[18rem] items-center justify-center lg:justify-start lg:pl-10">
+            <DisplayCards cards={showcaseCards} />
+          </div>
+          <div>
+            <span className="text-sm font-bold uppercase tracking-wide" style={{ color: PALETTE.lilaInk }}>
+              Registro sin fricción
+            </span>
+            <h2 className="mt-3 text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              Apuntar un gasto, en dos segundos
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+              Foto al ticket, una nota de voz o dos toques. La IA de Nexo extrae el importe, el
+              comercio y la categoría por ti. Tú solo confirmas.
+            </p>
+            <ul className="mt-6 space-y-3">
+              {[
+                "Foto al ticket y la IA rellena todo",
+                "Dicta el gasto y olvídate de escribir",
+                "Cada euro, en su categoría. Automático",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span
+                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                    style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}
+                  >
+                    <Check className="h-4 w-4" />
+                  </span>
+                  <span className="text-base font-medium text-foreground">{item}</span>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/login"
+              className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
+            >
+              Probarlo gratis <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Funcionalidades */}
-      <section className="bg-muted/40 py-20 lg:py-28">
+      <section id="funciones" className="py-20 lg:py-28">
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              Todo tu dinero, en una sola app
+              Todo lo que necesitas para llevar tu dinero al día
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
               Registrar, controlar y ahorrar. Sin hojas de cálculo, sin fricción.
@@ -200,44 +285,46 @@ export default function HomePage() {
       </section>
 
       {/* Opiniones */}
-      <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Gente que ya respira tranquila
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Lo que dicen quienes dejaron el caos financiero atrás.
-          </p>
-        </div>
-        <div className="mt-14 grid gap-5 md:grid-cols-3">
-          {testimonials.map((t) => (
-            <figure
-              key={t.name}
-              className="flex flex-col rounded-3xl border border-border/60 bg-card p-7 shadow-sm"
-            >
-              <Quote className="h-7 w-7" style={{ color: PALETTE.lila }} />
-              <blockquote className="mt-4 flex-1 text-base leading-relaxed text-foreground">
-                “{t.quote}”
-              </blockquote>
-              <figcaption className="mt-6 flex items-center gap-3">
-                <span
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
-                  style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}
-                >
-                  {t.name[0]}
-                </span>
-                <div>
-                  <p className="text-sm font-bold text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.role}</p>
-                </div>
-              </figcaption>
-            </figure>
-          ))}
+      <section id="opiniones" className="bg-muted/40 py-20 lg:py-28">
+        <div className="mx-auto max-w-6xl px-5 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              Gente que ya duerme tranquila
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Lo que dicen quienes dejaron el caos financiero atrás.
+            </p>
+          </div>
+          <div className="mt-14 grid gap-5 md:grid-cols-3">
+            {testimonials.map((t) => (
+              <figure
+                key={t.name}
+                className="flex flex-col rounded-3xl border border-border/60 bg-card p-7 shadow-sm"
+              >
+                <Quote className="h-7 w-7" style={{ color: PALETTE.lila }} />
+                <blockquote className="mt-4 flex-1 text-base leading-relaxed text-foreground">
+                  “{t.quote}”
+                </blockquote>
+                <figcaption className="mt-6 flex items-center gap-3">
+                  <span
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+                    style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}
+                  >
+                    {t.name[0]}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="bg-muted/40 py-20 lg:py-28">
+      <section id="faq" className="py-20 lg:py-28">
         <div className="mx-auto max-w-3xl px-5 lg:px-8">
           <h2 className="text-center text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             Preguntas frecuentes
@@ -260,14 +347,14 @@ export default function HomePage() {
       </section>
 
       {/* CTA final */}
-      <section className="mx-auto w-full max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
-        <div className="relative isolate overflow-hidden rounded-[2rem] nexo-hero-gradient px-6 py-16 text-center shadow-lg sm:px-12">
+      <section className="mx-auto w-full max-w-6xl px-5 pb-24 lg:px-8">
+        <div className="relative isolate overflow-hidden rounded-[2rem] border border-border/60 px-6 py-16 text-center shadow-lg sm:px-12" style={heroBg}>
           <DottedSurface />
           <div className="relative z-10">
             <h2 className="mx-auto max-w-2xl text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              Empieza hoy. Tu yo de fin de mes te lo agradecerá.
+              Tus cuentas claras empiezan hoy
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-balance text-lg text-foreground/80">
+            <p className="mx-auto mt-4 max-w-xl text-balance text-lg text-muted-foreground">
               Crea tu cuenta gratis y registra tu primer gasto en menos de un minuto.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -278,7 +365,7 @@ export default function HomePage() {
                 Crear cuenta gratis <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-foreground/70">
+            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-muted-foreground">
               <li className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: PALETTE.mintInk }} /> Gratis para empezar</li>
               <li className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: PALETTE.mintInk }} /> Sin tarjeta</li>
               <li className="inline-flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: PALETTE.mintInk }} /> Tus datos, privados</li>
@@ -295,7 +382,7 @@ export default function HomePage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo-nexo.svg" alt="Nexo" width={104} height={34} className="h-auto w-[104px]" />
               <p className="mt-4 text-sm text-muted-foreground">
-                Tus finanzas, sin esfuerzo. Registra con IA, controla tus límites y ahorra cada mes.
+                Las cuentas claras, sin esfuerzo. Registra con IA, controla tus límites y ahorra cada mes.
               </p>
               <div className="mt-5 flex items-center gap-3">
                 <a href="#" aria-label="Instagram" className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
@@ -314,7 +401,7 @@ export default function HomePage() {
               <FooterCol
                 title="Producto"
                 links={[
-                  { label: "Funciones", href: "#" },
+                  { label: "Funciones", href: "#funciones" },
                   { label: "Demo", href: "/dashboard" },
                   { label: "Entrar", href: "/login" },
                 ]}
