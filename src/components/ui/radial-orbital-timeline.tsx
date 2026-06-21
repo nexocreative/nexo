@@ -86,7 +86,7 @@ export default function RadialOrbitalTimeline({
     if (autoRotate && viewMode === "orbital") {
       rotationTimer = setInterval(() => {
         setRotationAngle((prev) => {
-          const newAngle = (prev + 0.3) % 360;
+          const newAngle = (prev + 0.8) % 360;
           return Number(newAngle.toFixed(3));
         });
       }, 50);
@@ -167,8 +167,8 @@ export default function RadialOrbitalTimeline({
       ref={containerRef}
       onClick={handleContainerClick}
       style={{
-        backgroundColor: "hsl(var(--background))",
-        backgroundImage: `radial-gradient(60% 55% at 50% 45%, ${PALETTE.lilaSoft}, transparent 70%), radial-gradient(45% 45% at 85% 90%, ${PALETTE.mintSoft}, transparent 70%)`,
+        backgroundColor: "transparent",
+        backgroundImage: `radial-gradient(42% 40% at 50% 48%, ${PALETTE.lilaSoft}, transparent 72%)`,
       }}
     >
       <div className="relative flex h-full w-full max-w-4xl items-center justify-center">

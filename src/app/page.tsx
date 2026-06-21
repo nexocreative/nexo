@@ -158,7 +158,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative isolate -mt-[72px] overflow-hidden pt-[72px]" style={heroBg}>
         <DottedSurface />
-        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 py-24 text-center lg:py-32">
+        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 py-24 text-center lg:pb-28 lg:pt-[70px]">
           <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
             <Sparkles className="h-4 w-4" style={{ color: PALETTE.lilaInk }} />
             Finanzas con IA · solo o en pareja
@@ -215,7 +215,7 @@ export default function HomePage() {
               sitio. <span className="font-medium text-foreground">Toca cada órbita para verlo.</span>
             </p>
           </div>
-          <div className="relative h-[420px] w-full overflow-hidden rounded-3xl border border-border/60 shadow-lg sm:h-[520px]">
+          <div className="relative h-[420px] w-full sm:h-[520px]">
             <NexoOrbital />
           </div>
         </div>
