@@ -13,114 +13,122 @@ export default async function DashboardPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
-      {/* Fila 1 · izquierda: Balance del mes */}
-      <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:col-span-2">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Balance del mes
-              </p>
-              <p className="mt-2 text-4xl font-extrabold tracking-tight text-foreground">
-                {formatEUR(d.monthBalance)}
-              </p>
-              <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: PALETTE.mintInk }}>
-                <TrendingUp className="h-4 w-4" />
-                {d.savingsRate}% de ahorro este mes
-              </p>
-            </div>
-            <Link
-              href="/dashboard/anadir"
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
-            >
-              <Plus className="h-4 w-4" /> Registrar movimiento
-            </Link>
+      {/* Balance del mes (móvil: 1) */}
+      <section className="order-1 rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:order-none lg:col-span-2">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Balance del mes
+            </p>
+            <p className="mt-2 text-4xl font-extrabold tracking-tight text-foreground">
+              {formatEUR(d.monthBalance)}
+            </p>
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: PALETTE.mintInk }}>
+              <TrendingUp className="h-4 w-4" />
+              {d.savingsRate}% de ahorro este mes
+            </p>
           </div>
+          {/* Botón en la cabecera (solo escritorio) */}
+          <Link
+            href="/dashboard/anadir"
+            className="hidden shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:inline-flex"
+          >
+            <Plus className="h-4 w-4" /> Registrar movimiento
+          </Link>
+        </div>
 
         <div className="mt-7 grid grid-cols-2 gap-3">
           <Stat label="Ingresos" value={formatEUR(d.monthIncome)} positive />
           <Stat label="Gastos" value={formatEUR(d.monthExpense)} />
         </div>
+
+        {/* Botón debajo de Ingresos/Gastos (solo móvil) */}
+        <Link
+          href="/dashboard/anadir"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:hidden"
+        >
+          <Plus className="h-4 w-4" /> Registrar movimiento
+        </Link>
       </section>
 
-      {/* Fila 1 · derecha: nómina + alerta */}
-      <div className="flex flex-col gap-6 lg:self-stretch">
+      {/* Nómina + Todo bajo control (móvil: 4) */}
+      <div className="order-4 flex flex-col gap-6 lg:order-none lg:self-stretch">
         {d.nomina?.needsConfirmation && <NominaCard expected={d.nomina.expected} />}
         <AlertCard d={d} />
       </div>
 
-      {/* Fila 2 · izquierda: movimientos + gráfica */}
-      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        {/* Últimos movimientos */}
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-foreground">Últimos movimientos</h3>
-            <Link href="/dashboard/movimientos" className="text-sm font-semibold text-primary hover:underline">
-              Ver todos
-            </Link>
-          </div>
-          {d.recent.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              Aún no hay movimientos. Añade tu primer gasto.
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {d.recent.map((t) => (
-                <li key={t.id} className="flex items-center gap-3">
-                  <span
-                    className="flex h-10 w-10 items-center justify-center rounded-xl"
-                    style={
-                      t.type === "income"
-                        ? { backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }
-                        : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                    }
-                  >
-                    {t.type === "income" ? <Banknote className="h-[18px] w-[18px]" /> : <CategoryIcon category={t.category} className="h-[18px] w-[18px]" />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {t.merchant ?? t.description ?? t.cat.label}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {new Date(t.occurred_at).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
-                      {t.type === "expense" ? ` · ${t.cat.label}` : " · Ingreso"}
-                    </p>
-                  </div>
-                  <p
-                    className="text-sm font-bold"
-                    style={{ color: t.type === "income" ? PALETTE.mintInk : "hsl(var(--foreground))" }}
-                  >
-                    {formatEUR(t.type === "income" ? t.amount : -t.amount, { sign: true })}
+      {/* Últimos movimientos (móvil: 2) */}
+      <section className="order-2 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none lg:col-span-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-foreground">Últimos movimientos</h3>
+          <Link href="/dashboard/movimientos" className="text-sm font-semibold text-primary hover:underline">
+            Ver todos
+          </Link>
+        </div>
+        {d.recent.length === 0 ? (
+          <p className="mt-6 text-sm text-muted-foreground">
+            Aún no hay movimientos. Añade tu primer gasto.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {d.recent.map((t) => (
+              <li key={t.id} className="flex items-center gap-3">
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={
+                    t.type === "income"
+                      ? { backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }
+                      : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                  }
+                >
+                  {t.type === "income" ? <Banknote className="h-[18px] w-[18px]" /> : <CategoryIcon category={t.category} className="h-[18px] w-[18px]" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {t.merchant ?? t.description ?? t.cat.label}
                   </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {new Date(t.occurred_at).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
+                    {t.type === "expense" ? ` · ${t.cat.label}` : " · Ingreso"}
+                  </p>
+                </div>
+                <p
+                  className="text-sm font-bold"
+                  style={{ color: t.type === "income" ? PALETTE.mintInk : "hsl(var(--foreground))" }}
+                >
+                  {formatEUR(t.type === "income" ? t.amount : -t.amount, { sign: true })}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-        {/* Ingresos vs Gastos */}
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-foreground">Ingresos vs Gastos</h3>
-            <div className="flex items-center gap-4 text-xs font-semibold text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.lila }} />
-                Ingresos
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.mint }} />
-                Gastos
-              </span>
-            </div>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Últimos 6 meses</p>
-          <div className="mt-4">
-            <IncomeExpenseBars data={d.bars} />
-          </div>
-        </section>
+      {/* Ahorro del mes (móvil: 3) */}
+      <div className="order-3 lg:order-none">
+        <SavingsCard savings={d.savings} />
       </div>
 
-      {/* Fila 2 · derecha: ahorro del mes */}
-      <SavingsCard savings={d.savings} />
+      {/* Ingresos vs Gastos (móvil: 5) */}
+      <section className="order-5 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none lg:col-span-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-foreground">Ingresos vs Gastos</h3>
+          <div className="flex items-center gap-4 text-xs font-semibold text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.lila }} />
+              Ingresos
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.mint }} />
+              Gastos
+            </span>
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">Últimos 6 meses</p>
+        <div className="mt-4">
+          <IncomeExpenseBars data={d.bars} />
+        </div>
+      </section>
     </div>
   );
 }
