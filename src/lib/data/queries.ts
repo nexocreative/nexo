@@ -7,6 +7,8 @@ import type {
   RecurringRule,
   CategoryBudget,
   SavingsGoal,
+  SavingsCategory,
+  SavingsEntry,
   VacationPeriod,
   Profile,
   PartnerLink,
@@ -174,9 +176,7 @@ export interface DashboardData {
   recent: TxView[];
   nomina: { needsConfirmation: boolean; expected: number } | null;
   bars: { month: string; income: number; expense: number }[];
-  savingsGoal:
-    | { name: string; current: number; target: number; pct: number; daysLeft: number }
-    | null;
+  savings: { thisMonth: number; monthlyPlan: number; total: number };
 }
 
 export async function getDashboard(userId: string): Promise<DashboardData> {
@@ -185,7 +185,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
   const end = isoDate(endOfMonth(now));
   const barsFrom = isoDate(startOfMonth(subMonths(now, 5)));
 
-  const [{ data: monthTx }, { data: recentTx }, profile, { data: budgets }, { data: rules }, { data: barsTx }, { data: goals }] =
+  const [{ data: monthTx }, { data: recentTx }, profile, { data: budgets }, { data: rules }, { data: barsTx }, { data: savingsEntries }, { data: savingsCats }] =
     await Promise.all([
       supabaseAdmin()
         .from("transactions")
@@ -216,27 +216,22 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
         .eq("user_id", userId)
         .is("vacation_id", null)
         .gte("occurred_at", barsFrom),
-      supabaseAdmin()
-        .from("savings_goals")
-        .select("*")
-        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
-        .order("created_at", { ascending: false })
-        .limit(1),
+      supabaseAdmin().from("savings_entries").select("*").eq("user_id", userId),
+      supabaseAdmin().from("savings_categories").select("monthly_plan").eq("user_id", userId),
     ]);
 
-  // Objetivo de ahorro (si existe).
-  const rawGoal = (goals?.[0] as SavingsGoal) ?? null;
-  let savingsGoal: DashboardData["savingsGoal"] = null;
-  if (rawGoal) {
-    const target = Number(rawGoal.target_amount);
-    const current = Number(rawGoal.current_amount);
-    const pct = target > 0 ? Math.min(100, Math.max(0, Math.round((current / target) * 100))) : 0;
-    const daysLeft = Math.max(
+  // Ahorro: total del mes en curso, plan mensual y acumulado histórico.
+  const mk = monthKey(now);
+  const sEntries = (savingsEntries as SavingsEntry[]) ?? [];
+  const monthSavings = sum(sEntries.filter((e) => e.month === mk));
+  const savings = {
+    thisMonth: monthSavings,
+    monthlyPlan: ((savingsCats as { monthly_plan: number }[]) ?? []).reduce(
+      (a, c) => a + Number(c.monthly_plan),
       0,
-      Math.ceil((new Date(rawGoal.target_date).getTime() - now.getTime()) / 86400000),
-    );
-    savingsGoal = { name: rawGoal.name, current, target, pct, daysLeft };
-  }
+    ),
+    total: sum(sEntries),
+  };
 
   // Barras ingresos vs gastos de los últimos 6 meses.
   const barsAll = (barsTx as Transaction[]) ?? [];
@@ -256,9 +251,10 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
   const incomes = tx.filter((t) => t.type === "income");
   const monthIncome = sum(incomes);
   const monthExpense = sum(expenses);
-  const monthBalance = monthIncome - monthExpense;
+  // El ahorro del mes se aparta: balance = ingresos - gastos - ahorro.
+  const monthBalance = monthIncome - monthExpense - monthSavings;
   const savingsRate =
-    monthIncome > 0 ? Math.max(0, Math.round((monthBalance / monthIncome) * 100)) : 0;
+    monthIncome > 0 ? Math.max(0, Math.round((monthSavings / monthIncome) * 100)) : 0;
 
   const monthlyBudget = profile?.monthly_budget ? Number(profile.monthly_budget) : null;
   const budgetSpentPct = monthlyBudget ? Math.round((monthExpense / monthlyBudget) * 100) : 0;
@@ -295,7 +291,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     recent: ((recentTx as Transaction[]) ?? []).map(withCategory),
     nomina,
     bars,
-    savingsGoal,
+    savings,
   };
 }
 
@@ -520,6 +516,168 @@ export async function getCharts(userId: string): Promise<ChartsData> {
       budget: profile?.monthly_budget ? Number(profile.monthly_budget) : null,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Ahorro mensual por categorías
+// ---------------------------------------------------------------------------
+
+const DEFAULT_SAVINGS_CATEGORIES = ["Emergencia", "Vacaciones", "General"];
+
+/** Crea las categorías de ahorro por defecto si el usuario aún no tiene ninguna. */
+export async function ensureSavingsCategories(userId: string): Promise<void> {
+  const { count } = await supabaseAdmin()
+    .from("savings_categories")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if ((count ?? 0) > 0) return;
+  await supabaseAdmin()
+    .from("savings_categories")
+    .insert(
+      DEFAULT_SAVINGS_CATEGORIES.map((name, i) => ({
+        user_id: userId,
+        name,
+        monthly_plan: 0,
+        sort_order: i,
+      })),
+    );
+}
+
+/**
+ * Contabiliza el plan mensual de ahorro del mes en curso: por cada categoría
+ * con plan > 0 que no tenga ya su entrada 'plan' del mes, la crea. Idempotente.
+ */
+export async function materializeSavingsPlan(userId: string): Promise<void> {
+  const mk = monthKey(new Date());
+  const { data: cats } = await supabaseAdmin()
+    .from("savings_categories")
+    .select("*")
+    .eq("user_id", userId)
+    .gt("monthly_plan", 0);
+  const categories = (cats as SavingsCategory[]) ?? [];
+  if (categories.length === 0) return;
+
+  const { data: existing } = await supabaseAdmin()
+    .from("savings_entries")
+    .select("category_id")
+    .eq("user_id", userId)
+    .eq("month", mk)
+    .eq("source", "plan");
+  const done = new Set((existing ?? []).map((e) => e.category_id));
+
+  const toInsert = categories
+    .filter((c) => !done.has(c.id))
+    .map((c) => ({
+      user_id: userId,
+      category_id: c.id,
+      amount: Number(c.monthly_plan),
+      month: mk,
+      source: "plan" as const,
+    }));
+  if (toInsert.length > 0) {
+    await supabaseAdmin().from("savings_entries").insert(toInsert);
+  }
+}
+
+export interface SavingsCategoryView {
+  id: string;
+  name: string;
+  monthlyPlan: number;
+  thisMonth: number; // ahorrado este mes en la categoría
+  accumulated: number; // acumulado histórico
+  byMonth: Record<string, number>; // "YYYY-MM" -> ahorrado ese mes
+}
+
+export interface SavingsData {
+  thisMonth: number; // total ahorrado este mes
+  monthlyPlan: number; // suma de planes mensuales
+  yearTotal: number; // acumulado del año en curso
+  total: number; // acumulado histórico total
+  currentMonth: string; // "YYYY-MM" del mes en curso
+  categories: SavingsCategoryView[];
+  monthly: { month: string; amount: number }[]; // últimos 12 meses
+  months: { value: string; label: string }[]; // selector (12 meses, recientes primero)
+}
+
+export async function getSavings(userId: string): Promise<SavingsData> {
+  await ensureSavingsCategories(userId);
+  await materializeSavingsPlan(userId);
+
+  const now = new Date();
+  const mk = monthKey(now);
+  const year = String(now.getFullYear());
+
+  const [{ data: cats }, { data: entriesRaw }] = await Promise.all([
+    supabaseAdmin()
+      .from("savings_categories")
+      .select("*")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabaseAdmin().from("savings_entries").select("*").eq("user_id", userId),
+  ]);
+
+  const categories = (cats as SavingsCategory[]) ?? [];
+  const entries = (entriesRaw as SavingsEntry[]) ?? [];
+
+  // Claves de los últimos 12 meses (antiguo -> reciente).
+  const monthKeys = Array.from({ length: 12 }, (_, i) => {
+    const d = subMonths(startOfMonth(now), 11 - i);
+    return { key: monthKey(d), date: d };
+  });
+
+  const byCat = (id: string) => entries.filter((e) => e.category_id === id);
+  const catViews: SavingsCategoryView[] = categories.map((c) => {
+    const mine = byCat(c.id);
+    const byMonth: Record<string, number> = {};
+    for (const { key } of monthKeys) byMonth[key] = sum(mine.filter((e) => e.month === key));
+    return {
+      id: c.id,
+      name: c.name,
+      monthlyPlan: Number(c.monthly_plan),
+      thisMonth: sum(mine.filter((e) => e.month === mk)),
+      accumulated: sum(mine),
+      byMonth,
+    };
+  });
+
+  const thisMonth = sum(entries.filter((e) => e.month === mk));
+  const yearTotal = sum(entries.filter((e) => e.month.startsWith(year)));
+  const total = sum(entries);
+  const monthlyPlan = categories.reduce((a, c) => a + Number(c.monthly_plan), 0);
+
+  // Serie de los últimos 12 meses (para la gráfica).
+  const monthly = monthKeys.map(({ key, date }) => ({
+    month: monthShort(date),
+    amount: sum(entries.filter((e) => e.month === key)),
+  }));
+
+  // Opciones del selector de mes (recientes primero).
+  const months = [...monthKeys].reverse().map(({ key, date }) => ({
+    value: key,
+    label: `${monthShort(date)} ${date.getFullYear()}`,
+  }));
+
+  return {
+    thisMonth,
+    monthlyPlan,
+    yearTotal,
+    total,
+    currentMonth: mk,
+    categories: catViews,
+    monthly,
+    months,
+  };
+}
+
+/** Total ahorrado en un mes concreto ("YYYY-MM"). */
+export async function getMonthSavings(userId: string, mk: string): Promise<number> {
+  const { data } = await supabaseAdmin()
+    .from("savings_entries")
+    .select("amount")
+    .eq("user_id", userId)
+    .eq("month", mk);
+  return sum((data as { amount: number }[]) ?? []);
 }
 
 // ---------------------------------------------------------------------------

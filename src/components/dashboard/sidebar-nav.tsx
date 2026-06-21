@@ -11,6 +11,7 @@ import {
   BarChart3,
   Users,
   Palmtree,
+  PiggyBank,
 } from "lucide-react";
 
 const links = [
@@ -18,6 +19,7 @@ const links = [
   { href: "/dashboard/anadir", label: "Añadir Gasto", icon: PlusCircle },
   { href: "/dashboard/movimientos", label: "Movimientos", icon: ArrowLeftRight },
   { href: "/dashboard/limites", label: "Límites", icon: Gauge },
+  { href: "/dashboard/ahorro", label: "Ahorro", icon: PiggyBank },
   { href: "/dashboard/graficas", label: "Gráficas", icon: BarChart3 },
   { href: "/dashboard/juntos", label: "Juntos", icon: Users },
   { href: "/dashboard/vacaciones", label: "Vacaciones", icon: Palmtree },

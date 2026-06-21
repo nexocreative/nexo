@@ -67,6 +67,28 @@ export interface SavingsGoal {
   created_at: string;
 }
 
+export interface SavingsCategory {
+  id: string;
+  user_id: string;
+  name: string;
+  monthly_plan: number; // importe planificado a ahorrar cada mes
+  sort_order: number;
+  created_at: string;
+}
+
+export type SavingsEntrySource = "plan" | "manual";
+
+export interface SavingsEntry {
+  id: string;
+  user_id: string;
+  category_id: string | null;
+  amount: number; // puede ser negativo (retirada/ajuste)
+  month: string; // "YYYY-MM"
+  source: SavingsEntrySource;
+  note: string | null;
+  created_at: string;
+}
+
 export type VacationStatus = "active" | "closed";
 
 export interface VacationPeriod {

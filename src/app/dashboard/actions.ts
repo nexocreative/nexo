@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { requireUserId, getPartnerState, materializeRecurring } from "@/lib/data/queries";
+import { requireUserId, getPartnerState, materializeRecurring, materializeSavingsPlan } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
 
 /** Rango ISO [primer día, último día] del mes en curso (componentes locales). */
@@ -252,6 +252,147 @@ export async function upsertCategoryLimit(
     );
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard/limites");
+  return { ok: true };
+}
+
+// --- Ahorro mensual por categorías -----------------------------------------
+
+const savingsCategorySchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
+  monthly_plan: z.coerce.number().min(0, "No puede ser negativo"),
+});
+
+/** Crea una categoría de ahorro. */
+export async function createSavingsCategory(input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = savingsCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  // Coloca la nueva al final.
+  const { data: last } = await supabaseAdmin()
+    .from("savings_categories")
+    .select("sort_order")
+    .eq("user_id", userId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const sort_order = (last?.[0]?.sort_order ?? -1) + 1;
+  const { error } = await supabaseAdmin().from("savings_categories").insert({
+    user_id: userId,
+    name: d.name,
+    monthly_plan: d.monthly_plan,
+    sort_order,
+  });
+  if (error) return { ok: false, error: error.message };
+  await materializeSavingsPlan(userId).catch(() => {});
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/** Edita una categoría de ahorro (nombre y/o plan mensual). */
+export async function updateSavingsCategory(id: string, input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = savingsCategorySchema.partial().safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  const patch: Record<string, unknown> = {};
+  if (d.name !== undefined) patch.name = d.name;
+  if (d.monthly_plan !== undefined) patch.monthly_plan = d.monthly_plan;
+  const { error } = await supabaseAdmin()
+    .from("savings_categories")
+    .update(patch)
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+
+  // Si cambió el plan, actualiza la entrada 'plan' del mes en curso para que
+  // el balance refleje el nuevo importe al instante.
+  if (d.monthly_plan !== undefined) {
+    const mk = monthKey(new Date());
+    await supabaseAdmin()
+      .from("savings_entries")
+      .delete()
+      .eq("user_id", userId)
+      .eq("category_id", id)
+      .eq("month", mk)
+      .eq("source", "plan");
+    if (d.monthly_plan > 0) {
+      await supabaseAdmin().from("savings_entries").insert({
+        user_id: userId,
+        category_id: id,
+        amount: d.monthly_plan,
+        month: mk,
+        source: "plan",
+      });
+    }
+  }
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/** Elimina una categoría de ahorro (y sus aportes, por cascada). */
+export async function deleteSavingsCategory(id: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  if (!id) return { ok: false, error: "ID no válido" };
+  const { error } = await supabaseAdmin()
+    .from("savings_categories")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/** Añade un aporte/ajuste manual de ahorro a una categoría (mes en curso por defecto). */
+export async function addSavingsEntry(input: {
+  category_id: string;
+  amount: number;
+  month?: string;
+  note?: string;
+}): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const amount = Number(input.amount);
+  if (!amount || Number.isNaN(amount)) return { ok: false, error: "Importe no válido" };
+  if (!input.category_id) return { ok: false, error: "Selecciona una categoría" };
+  const month = input.month?.match(/^\d{4}-\d{2}$/) ? input.month : monthKey(new Date());
+
+  // Verifica que la categoría es del usuario.
+  const { data: cat } = await supabaseAdmin()
+    .from("savings_categories")
+    .select("id")
+    .eq("id", input.category_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!cat) return { ok: false, error: "Categoría no encontrada" };
+
+  const { error } = await supabaseAdmin().from("savings_entries").insert({
+    user_id: userId,
+    category_id: input.category_id,
+    amount,
+    month,
+    source: "manual",
+    note: input.note || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/** Elimina un aporte de ahorro concreto. */
+export async function deleteSavingsEntry(id: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  if (!id) return { ok: false, error: "ID no válido" };
+  const { error } = await supabaseAdmin()
+    .from("savings_entries")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
 

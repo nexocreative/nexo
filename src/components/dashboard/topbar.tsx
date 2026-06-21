@@ -10,6 +10,7 @@ const titles: Record<string, string> = {
   "/dashboard/anadir": "Añadir Gasto",
   "/dashboard/movimientos": "Movimientos",
   "/dashboard/limites": "Límites y alertas",
+  "/dashboard/ahorro": "Ahorro",
   "/dashboard/graficas": "Gráficas",
   "/dashboard/juntos": "Juntos",
   "/dashboard/vacaciones": "Vacaciones",

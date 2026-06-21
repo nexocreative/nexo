@@ -12,11 +12,11 @@ export default async function DashboardPage() {
   const d = await getDashboard(userId);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
       {/* Fila 1 · izquierda: Balance del mes */}
       <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:col-span-2">
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Balance del mes
               </p>
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/dashboard/anadir"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
             >
               <Plus className="h-4 w-4" /> Registrar movimiento
             </Link>
@@ -119,8 +119,8 @@ export default async function DashboardPage() {
         </section>
       </div>
 
-      {/* Fila 2 · derecha: objetivo de ahorro */}
-      <SavingsGoalCard goal={d.savingsGoal} />
+      {/* Fila 2 · derecha: ahorro del mes */}
+      <SavingsCard savings={d.savings} />
     </div>
   );
 }
@@ -136,50 +136,42 @@ function Stat({ label, value, positive }: { label: string; value: string; positi
   );
 }
 
-function SavingsGoalCard({ goal }: { goal: Awaited<ReturnType<typeof getDashboard>>["savingsGoal"] }) {
+function SavingsCard({ savings }: { savings: Awaited<ReturnType<typeof getDashboard>>["savings"] }) {
+  const pct = savings.monthlyPlan > 0 ? Math.min(100, Math.round((savings.thisMonth / savings.monthlyPlan) * 100)) : 0;
   return (
     <section
       className="rounded-3xl border border-border/60 p-6 shadow-sm"
       style={{ background: `linear-gradient(135deg, ${PALETTE.lilaSoft}, hsl(var(--card)))` }}
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-bold text-foreground">Objetivo de ahorro</h3>
+        <h3 className="text-base font-bold text-foreground">Ahorro del mes</h3>
         <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.lila, color: "#fff" }}>
           <PiggyBank className="h-[18px] w-[18px]" />
         </span>
       </div>
 
-      {goal ? (
+      <p className="mt-3 text-2xl font-extrabold tracking-tight text-foreground">
+        {formatEUR(savings.thisMonth)}
+        {savings.monthlyPlan > 0 && (
+          <span className="text-sm font-semibold text-muted-foreground"> / {formatEUR(savings.monthlyPlan)}</span>
+        )}
+      </p>
+
+      {savings.monthlyPlan > 0 && (
         <>
-          <p className="mt-3 text-sm font-semibold text-foreground">{goal.name}</p>
-          <p className="mt-1 text-2xl font-extrabold tracking-tight text-foreground">
-            {formatEUR(goal.current)}
-            <span className="text-sm font-semibold text-muted-foreground"> / {formatEUR(goal.target)}</span>
-          </p>
           <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/70">
-            <div className="h-full rounded-full" style={{ width: `${goal.pct}%`, backgroundColor: PALETTE.lila }} />
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PALETTE.lila }} />
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-semibold" style={{ color: PALETTE.lilaInk }}>{goal.pct}% completado</span>
-            <span>{goal.daysLeft} días restantes</span>
-          </div>
-          <Link href="/dashboard/juntos" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
-            Ver objetivo
-          </Link>
-        </>
-      ) : (
-        <>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Aún no tienes un objetivo de ahorro. Crea uno para empezar a seguir tu progreso.
-          </p>
-          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/70">
-            <div className="h-full rounded-full" style={{ width: "0%", backgroundColor: PALETTE.lila }} />
-          </div>
-          <Link href="/dashboard/juntos" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
-            Crear objetivo
-          </Link>
+          <p className="mt-2 text-xs font-semibold" style={{ color: PALETTE.lilaInk }}>{pct}% de tu plan mensual</p>
         </>
       )}
+
+      <p className="mt-3 text-sm text-muted-foreground">
+        Acumulado total: <span className="font-semibold text-foreground">{formatEUR(savings.total)}</span>
+      </p>
+      <Link href="/dashboard/ahorro" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
+        Gestionar ahorro
+      </Link>
     </section>
   );
 }
