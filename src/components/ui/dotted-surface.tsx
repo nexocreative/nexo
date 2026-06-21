@@ -23,6 +23,11 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 	useEffect(() => {
 		const container = containerRef.current;
 		if (!container) return;
+		// En móvil no cargamos WebGL: dos contextos three.js a pixelRatio alto
+		// saturan la GPU y pueden tumbar el navegador.
+		if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+			return;
+		}
 
 		const SEPARATION = 150;
 		const AMOUNTX = 40;
@@ -44,7 +49,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 			alpha: true,
 			antialias: true,
 		});
-		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 		renderer.setSize(window.innerWidth, window.innerHeight);
 		renderer.setClearColor(scene.fog.color, 0);
 

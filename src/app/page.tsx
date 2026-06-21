@@ -123,7 +123,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative isolate -mt-[72px] overflow-hidden pt-[72px]" style={heroBg}>
         <DottedSurface />
-        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 py-24 text-center lg:pb-28 lg:pt-[70px]">
+        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 pb-16 pt-10 text-center lg:pb-28 lg:pt-[70px]">
           <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
             <Sparkles className="h-4 w-4" style={{ color: PALETTE.lilaInk }} />
             Finanzas con IA · solo o en pareja
@@ -146,15 +146,9 @@ export default function HomePage() {
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground px-7 py-3.5 text-base font-semibold text-background shadow-lg transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:-translate-y-0.5"
             >
               Crear cuenta gratis <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-foreground/15 bg-background/70 px-7 py-3.5 text-base font-semibold text-foreground backdrop-blur-sm transition-colors hover:bg-background"
-            >
-              Ver demo
             </Link>
           </div>
           <p className="mt-5 text-sm font-medium text-muted-foreground">
