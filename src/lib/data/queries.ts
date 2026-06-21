@@ -19,7 +19,7 @@ import {
   type CategoryDef,
   type BudgetState,
 } from "@/lib/constants";
-import { monthShort } from "@/lib/format";
+import { monthShort, monthKey } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -97,6 +97,65 @@ export async function getPartnerState(userId: string): Promise<PartnerState> {
     partner: partnerUser ? { id: partnerUser.id, name: partnerUser.name } : null,
     sharingActive,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Gastos fijos: materialización automática
+// ---------------------------------------------------------------------------
+
+/**
+ * Garantiza que cada GASTO fijo activo tenga su transacción del mes en curso
+ * (se contabiliza automáticamente). Idempotente: solo crea las que falten.
+ * Los INGRESOS fijos (nómina) NO se materializan: requieren confirmación manual.
+ */
+export async function materializeRecurring(userId: string): Promise<void> {
+  const now = new Date();
+  const mk = monthKey(now);
+
+  const { data: rawRules } = await supabaseAdmin()
+    .from("recurring_rules")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("type", "expense")
+    .eq("active", true);
+  const rules = (rawRules as RecurringRule[]) ?? [];
+  const due = rules.filter((r) => r.last_generated_month !== mk);
+  if (due.length === 0) return;
+
+  const start = isoDate(startOfMonth(now));
+  const end = isoDate(endOfMonth(now));
+  const dueIds = due.map((r) => r.id);
+  const { data: existing } = await supabaseAdmin()
+    .from("transactions")
+    .select("recurring_rule_id")
+    .eq("user_id", userId)
+    .gte("occurred_at", start)
+    .lte("occurred_at", end)
+    .in("recurring_rule_id", dueIds);
+  const already = new Set((existing ?? []).map((e) => e.recurring_rule_id));
+
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const toInsert = due
+    .filter((r) => !already.has(r.id))
+    .map((r) => ({
+      user_id: userId,
+      type: "expense" as const,
+      amount: r.amount,
+      category: r.category ?? "otros",
+      description: r.description,
+      merchant: r.description,
+      occurred_at: `${y}-${m}-${String(Math.min(r.day_of_month, 28)).padStart(2, "0")}`,
+      source: "recurring" as const,
+      recurring_rule_id: r.id,
+    }));
+  if (toInsert.length > 0) {
+    await supabaseAdmin().from("transactions").insert(toInsert);
+  }
+  await supabaseAdmin()
+    .from("recurring_rules")
+    .update({ last_generated_month: mk })
+    .in("id", dueIds);
 }
 
 // ---------------------------------------------------------------------------

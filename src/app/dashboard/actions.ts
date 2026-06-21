@@ -3,8 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { requireUserId, getPartnerState } from "@/lib/data/queries";
+import { requireUserId, getPartnerState, materializeRecurring } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
+
+/** Rango ISO [primer día, último día] del mes en curso (componentes locales). */
+function currentMonthRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return {
+    start: `${y}-${p(m + 1)}-01`,
+    end: `${y}-${p(m + 1)}-${p(new Date(y, m + 1, 0).getDate())}`,
+  };
+}
 
 const CATEGORY_KEYS = [
   "supermercado", "restaurantes", "transporte", "ocio", "suscripciones",
@@ -95,6 +107,8 @@ export async function createRecurring(input: unknown): Promise<ActionResult> {
     active: true,
   });
   if (error) return { ok: false, error: error.message };
+  // Contabiliza ya el gasto fijo de este mes.
+  await materializeRecurring(userId).catch(() => {});
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
@@ -119,12 +133,40 @@ export async function updateRecurring(id: string, input: unknown): Promise<Actio
     .eq("id", id)
     .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
+
+  // Reconcilia el mes en curso: borra la transacción generada y la regenera
+  // con los nuevos valores (o la deja fuera si se pausó / pasó a ingreso).
+  const { start, end } = currentMonthRange();
+  await supabaseAdmin()
+    .from("transactions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("recurring_rule_id", id)
+    .gte("occurred_at", start)
+    .lte("occurred_at", end);
+  await supabaseAdmin()
+    .from("recurring_rules")
+    .update({ last_generated_month: null })
+    .eq("id", id)
+    .eq("user_id", userId);
+  await materializeRecurring(userId).catch(() => {});
+
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
 
 export async function deleteRecurring(id: string): Promise<ActionResult> {
   const userId = await requireUserId();
+  // Quita también el gasto generado de este mes para que el total baje.
+  const { start, end } = currentMonthRange();
+  await supabaseAdmin()
+    .from("transactions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("recurring_rule_id", id)
+    .gte("occurred_at", start)
+    .lte("occurred_at", end);
+
   const { error } = await supabaseAdmin()
     .from("recurring_rules")
     .delete()

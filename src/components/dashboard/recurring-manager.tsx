@@ -50,7 +50,7 @@ export function RecurringManager({ items }: { items: RecItem[] }) {
             <Repeat className="h-[18px] w-[18px]" />
           </span>
           <div>
-            <h3 className="text-base font-bold text-foreground">Gastos fijos</h3>
+            <h3 className="text-base font-bold text-foreground">Movimientos fijos</h3>
             <p className="text-xs text-muted-foreground">Recurrentes cada mes</p>
           </div>
         </div>
@@ -72,7 +72,7 @@ export function RecurringManager({ items }: { items: RecItem[] }) {
 
       {expenses.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Aún no tienes gastos fijos. Añade tus suscripciones y pagos recurrentes.
+          Aún no tienes movimientos fijos. Añade tus suscripciones y pagos recurrentes.
         </p>
       ) : (
         <ul className="mt-4 space-y-2">
@@ -185,7 +185,8 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
     const res = item ? await updateRecurring(item.id, payload) : await createRecurring(payload);
     setPending(false);
     if (res.ok) {
-      toast.success(item ? "Gasto fijo actualizado" : "Gasto fijo añadido");
+      const label = type === "income" ? "Ingreso fijo" : "Gasto fijo";
+      toast.success(item ? `${label} actualizado` : `${label} añadido`);
       onClose();
       router.refresh();
     } else toast.error(res.error);
@@ -207,7 +208,9 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
     <Dialog open={!!editing} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{item ? "Editar fijo" : "Nuevo gasto fijo"}</DialogTitle>
+          <DialogTitle>
+            {item ? "Editar" : "Nuevo"} {type === "income" ? "ingreso" : "gasto"} fijo
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {/* Tipo */}

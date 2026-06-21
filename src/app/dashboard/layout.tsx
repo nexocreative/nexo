@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/lib/auth";
+import { materializeRecurring } from "@/lib/data/queries";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 
@@ -12,6 +13,9 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login?callbackUrl=/dashboard");
   }
+
+  // Contabiliza automáticamente los gastos fijos del mes en curso.
+  await materializeRecurring(session.user.id).catch(() => {});
 
   return (
     <div className="nexo-canvas flex min-h-screen">
