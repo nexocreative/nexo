@@ -62,8 +62,10 @@ export function SavingsManager({ data }: { data: SavingsData }) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+      {/* Columna principal (izquierda): resumen + tabla + gráfica */}
+      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
       {/* Resumen */}
-      <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:col-span-2">
+      <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lila, color: "#fff" }}>
@@ -92,17 +94,25 @@ export function SavingsManager({ data }: { data: SavingsData }) {
         </p>
       </section>
 
-      {/* Aporte rápido / reparto (lateral) */}
-      <div className="flex min-w-0 flex-col gap-6 lg:self-stretch">
-        <QuickContribute categories={data.categories} onOpen={(c) => setContributeFor(c)} />
+      {/* Tabla mensual por categoría */}
+      <MonthlyTable categories={data.categories} months={data.months} currentMonth={data.currentMonth} />
+
+      {/* Balance mes a mes */}
+      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+        <h3 className="text-base font-bold text-foreground">Balance mes a mes</h3>
+        <p className="text-xs text-muted-foreground">Lo que has ahorrado cada mes (últimos 12 meses)</p>
+        <div className="mt-4">
+          <SavingsBars data={data.monthly} />
+        </div>
+      </section>
       </div>
 
-      {/* Categorías */}
-      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:col-span-2">
-        <div className="flex items-center justify-between">
-          <div>
+      {/* Aside derecha: categorías de ahorro */}
+      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:sticky lg:top-6">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
             <h3 className="text-base font-bold text-foreground">Categorías de ahorro</h3>
-            <p className="text-sm text-muted-foreground">Reparte tu ahorro y define un plan mensual para cada una.</p>
+            <p className="text-sm text-muted-foreground">Reparte tu ahorro y define un plan mensual.</p>
           </div>
           <button
             onClick={() => setCatEditing("new")}
@@ -161,18 +171,6 @@ export function SavingsManager({ data }: { data: SavingsData }) {
         )}
       </section>
 
-      {/* Tabla mensual por categoría */}
-      <MonthlyTable categories={data.categories} months={data.months} currentMonth={data.currentMonth} />
-
-      {/* Balance mes a mes */}
-      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:col-span-2">
-        <h3 className="text-base font-bold text-foreground">Balance mes a mes</h3>
-        <p className="text-xs text-muted-foreground">Lo que has ahorrado cada mes (últimos 12 meses)</p>
-        <div className="mt-4">
-          <SavingsBars data={data.monthly} />
-        </div>
-      </section>
-
       <CategoryDialog editing={catEditing} onClose={() => setCatEditing(null)} />
       <ContributeDialog
         target={contributeFor}
@@ -203,7 +201,7 @@ function MonthlyTable({
   const totalAmount = rows.reduce((a, r) => a + r.amount, 0);
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:col-span-2">
+    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-bold text-foreground">Resumen mensual</h3>
@@ -278,36 +276,6 @@ function Stat({ icon: Icon, label, value, highlight }: { icon: React.ElementType
       </span>
       <p className="mt-1 text-base font-bold" style={{ color: highlight ? PALETTE.lilaInk : "hsl(var(--foreground))" }}>{value}</p>
     </div>
-  );
-}
-
-function QuickContribute({ categories, onOpen }: { categories: CategoryView[]; onOpen: (c: CategoryView | "any") => void }) {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-      <h3 className="text-base font-bold text-foreground">Reparto del ahorro</h3>
-      <p className="text-sm text-muted-foreground">Este mes, por categoría.</p>
-      {categories.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">Crea categorías para empezar.</p>
-      ) : (
-        <ul className="mt-4 space-y-3">
-          {categories.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.lila }} />
-                {c.name}
-              </span>
-              <span className="text-sm font-semibold text-foreground">{formatEUR(c.thisMonth)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <button
-        onClick={() => onOpen("any")}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-      >
-        <Plus className="h-4 w-4" /> Registrar aporte
-      </button>
-    </section>
   );
 }
 

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, Trash2 } from "lucide-react";
+import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, PiggyBank, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
-import { deleteTransaction } from "@/app/dashboard/actions";
+import { deleteTransaction, deleteSavingsEntry } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
 export interface MovementRow {
   id: string;
-  type: "expense" | "income";
+  type: "expense" | "income" | "savings";
   amount: number;
   category: string | null;
   merchant: string | null;
@@ -35,9 +35,17 @@ const SOURCE: Record<string, { label: string; icon: typeof Camera }> = {
   voice: { label: "Voz", icon: Mic },
   chat: { label: "Chat", icon: MessageSquare },
   recurring: { label: "Recurrente", icon: Repeat },
+  plan: { label: "Ahorro programado", icon: PiggyBank },
 };
 
 function RowIcon({ row }: { row: MovementRow }) {
+  if (row.type === "savings") {
+    return (
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+        <PiggyBank className="h-5 w-5" />
+      </span>
+    );
+  }
   if (row.type === "income") {
     return (
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}>
@@ -50,6 +58,17 @@ function RowIcon({ row }: { row: MovementRow }) {
       <CategoryIcon category={row.cat.key} className="h-5 w-5" />
     </span>
   );
+}
+
+/** Importe con color y signo según el tipo de movimiento. */
+function amountColor(type: MovementRow["type"]): string {
+  if (type === "income") return PALETTE.mintInk;
+  if (type === "savings") return PALETTE.lilaInk;
+  return "hsl(var(--foreground))";
+}
+function signedAmount(row: MovementRow): number {
+  // Ingreso suma; gasto y ahorro restan del dinero disponible.
+  return row.type === "income" ? row.amount : -row.amount;
 }
 
 export function MovementsList({ rows }: { rows: MovementRow[] }) {
@@ -87,9 +106,9 @@ export function MovementsList({ rows }: { rows: MovementRow[] }) {
                 </div>
                 <span
                   className="w-24 shrink-0 text-right text-sm font-bold"
-                  style={{ color: t.type === "income" ? PALETTE.mintInk : "hsl(var(--foreground))" }}
+                  style={{ color: amountColor(t.type) }}
                 >
-                  {formatEUR(t.type === "income" ? t.amount : -t.amount, { sign: true })}
+                  {formatEUR(signedAmount(t), { sign: true })}
                 </span>
               </button>
             </li>
@@ -114,10 +133,10 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
 
   async function remove() {
     setPending(true);
-    const res = await deleteTransaction(row.id);
+    const res = row.type === "savings" ? await deleteSavingsEntry(row.id) : await deleteTransaction(row.id);
     setPending(false);
     if (res.ok) {
-      toast.success("Movimiento eliminado");
+      toast.success(row.type === "savings" ? "Aporte de ahorro eliminado" : "Movimiento eliminado");
       onClose();
       router.refresh();
     } else toast.error(res.error);
@@ -134,12 +153,12 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
       <div className="space-y-4">
         <p
           className="text-3xl font-extrabold"
-          style={{ color: row.type === "income" ? PALETTE.mintInk : "hsl(var(--foreground))" }}
+          style={{ color: amountColor(row.type) }}
         >
-          {formatEUR(row.type === "income" ? row.amount : -row.amount, { sign: true })}
+          {formatEUR(signedAmount(row), { sign: true })}
         </p>
         <dl className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Tipo" value={row.type === "income" ? "Ingreso" : "Gasto"} />
+          <Field label="Tipo" value={row.type === "income" ? "Ingreso" : row.type === "savings" ? "Ahorro" : "Gasto"} />
           <Field label="Categoría" value={row.type === "income" ? "—" : row.cat.label} />
           <Field label="Fecha" value={new Date(row.occurred_at).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })} />
           <Field label="Origen" value={src.label} />
@@ -150,14 +169,16 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
         {row.description && row.description !== row.merchant && (
           <p className="text-sm text-muted-foreground">{row.description}</p>
         )}
-        <div className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-          {row.receipt_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.receipt_url} alt="Ticket" className="mx-auto max-h-60 rounded-lg" />
-          ) : (
-            "Sin ticket adjunto"
-          )}
-        </div>
+        {row.type !== "savings" && (
+          <div className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+            {row.receipt_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={row.receipt_url} alt="Ticket" className="mx-auto max-h-60 rounded-lg" />
+            ) : (
+              "Sin ticket adjunto"
+            )}
+          </div>
+        )}
 
         {!confirming ? (
           <button
@@ -173,7 +194,7 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {row.merchant ?? row.description ?? row.cat.label} ·{" "}
-              {formatEUR(row.type === "income" ? row.amount : -row.amount, { sign: true })}. Esta acción no se puede deshacer.
+              {formatEUR(signedAmount(row), { sign: true })}. Esta acción no se puede deshacer.
             </p>
             <div className="mt-3 flex gap-2">
               <button

@@ -299,12 +299,23 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
 // Movimientos (Gastos & Ingresos + Gastos fijos)
 // ---------------------------------------------------------------------------
 
+export interface SavingsMovement {
+  id: string;
+  amount: number;
+  categoryName: string;
+  note: string | null;
+  source: string; // 'plan' | 'manual'
+  date: string; // ISO date (created_at)
+}
+
 export interface MovementsData {
   month: string; // "YYYY-MM"
   monthOptions: { value: string; label: string }[];
   income: number;
   expense: number;
+  savings: number;
   transactions: TxView[];
+  savingsMovements: SavingsMovement[];
   recurring: (RecurringRule & { cat: CategoryDef })[];
 }
 
@@ -332,18 +343,39 @@ export async function getMovements(
   if (opts?.type && opts.type !== "all") query = query.eq("type", opts.type);
   if (opts?.category) query = query.eq("category", opts.category);
 
-  const [{ data: tx }, { data: rules }] = await Promise.all([
+  const mk = monthKey(monthDate);
+  const [{ data: tx }, { data: rules }, { data: sEntries }, { data: sCats }] = await Promise.all([
     query,
     supabaseAdmin()
       .from("recurring_rules")
       .select("*")
       .eq("user_id", userId)
       .order("amount", { ascending: false }),
+    supabaseAdmin()
+      .from("savings_entries")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("month", mk)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin().from("savings_categories").select("id, name").eq("user_id", userId),
   ]);
 
   const transactions = ((tx as Transaction[]) ?? []).map(withCategory);
   const income = sum(transactions.filter((t) => t.type === "income"));
   const expense = sum(transactions.filter((t) => t.type === "expense"));
+
+  // Aportes de ahorro del mes (se muestran junto al resto de movimientos).
+  const catName = new Map(((sCats as { id: string; name: string }[]) ?? []).map((c) => [c.id, c.name]));
+  const savingsEntries = (sEntries as SavingsEntry[]) ?? [];
+  const savings = sum(savingsEntries);
+  const savingsMovements: SavingsMovement[] = savingsEntries.map((e) => ({
+    id: e.id,
+    amount: Number(e.amount),
+    categoryName: (e.category_id && catName.get(e.category_id)) || "Ahorro",
+    note: e.note,
+    source: e.source,
+    date: (e.created_at ?? `${e.month}-01`).slice(0, 10),
+  }));
 
   // Firma las rutas de los tickets guardados en Storage (bucket privado) para
   // poder mostrarlos en el detalle del movimiento.
@@ -371,7 +403,9 @@ export async function getMovements(
     monthOptions,
     income,
     expense,
+    savings,
     transactions,
+    savingsMovements,
     recurring: ((rules as RecurringRule[]) ?? []).map((r) => ({
       ...r,
       cat: getCategory(r.category),
