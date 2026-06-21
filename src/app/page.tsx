@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import DisplayCards from "@/components/ui/display-cards";
+import { NexoOrbital } from "@/components/ui/nexo-orbital";
 import { PALETTE } from "@/lib/constants";
 
 const heroBg = {
@@ -197,16 +198,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Punto de dolor */}
-      <section className="mx-auto max-w-3xl px-5 py-20 text-center lg:py-24">
-        <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-          ¿A dónde se va el dinero cada mes?
-        </h2>
-        <p className="mt-6 text-balance text-lg leading-relaxed text-muted-foreground">
-          Llegas a fin de mes y no sabes en qué se fue. Apuntar gastos a mano aguanta tres días. Y
-          cada vez que toca hablar de dinero en pareja, acaba regular.{" "}
-          <span className="font-semibold text-foreground">Nexo convierte ese caos en claridad.</span>
-        </p>
+      {/* Punto de dolor + orbital */}
+      <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8 lg:py-24">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-10">
+          <div>
+            <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              ¿A dónde se va el dinero cada mes?
+            </h2>
+            <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
+              Llegas a fin de mes y no sabes en qué se fue. Apuntar gastos a mano aguanta tres días. Y
+              cada vez que toca hablar de dinero en pareja, acaba regular.{" "}
+              <span className="font-semibold text-foreground">Nexo convierte ese caos en claridad.</span>
+            </p>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Ingresos, gastos, ahorro, vacaciones y la vista en pareja: todo conectado en un mismo
+              sitio. <span className="font-medium text-foreground">Toca cada órbita para verlo.</span>
+            </p>
+          </div>
+          <div className="relative h-[420px] w-full overflow-hidden rounded-3xl border border-border/60 shadow-lg sm:h-[520px]">
+            <NexoOrbital />
+          </div>
+        </div>
       </section>
 
       {/* Showcase con DisplayCards */}
