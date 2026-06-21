@@ -3,9 +3,6 @@ import {
   Camera,
   Mic,
   PiggyBank,
-  Bell,
-  BarChart3,
-  Users,
   ArrowRight,
   Check,
   Sparkles,
@@ -15,6 +12,7 @@ import {
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import DisplayCards from "@/components/ui/display-cards";
 import { NexoOrbital } from "@/components/ui/nexo-orbital";
+import { CardCarousel } from "@/components/ui/card-carousel";
 import { PALETTE } from "@/lib/constants";
 
 const heroBg = {
@@ -51,39 +49,6 @@ const showcaseCards = [
     iconClassName: "bg-[#ECE9FB] text-[#5F54AE]",
     titleClassName: "text-[#5F54AE]",
     className: "[grid-area:stack] translate-x-28 translate-y-[4.5rem] hover:translate-y-10",
-  },
-];
-
-const features = [
-  {
-    icon: Camera,
-    title: "Registro por foto",
-    description: "Haz una foto al ticket y la IA extrae importe, comercio y categoría. Tú no tocas nada.",
-  },
-  {
-    icon: Mic,
-    title: "Registro por voz",
-    description: "Dicta un gasto mientras vas por la calle. Whisper lo transcribe y GPT-4o lo ordena.",
-  },
-  {
-    icon: PiggyBank,
-    title: "Ahorro por categorías",
-    description: "Aparta cada mes para emergencias, vacaciones o lo que quieras. Y ve crecer tu colchón.",
-  },
-  {
-    icon: Bell,
-    title: "Límites y alertas",
-    description: "Avisos antes de pasarte del presupuesto: al 75%, al 90% y aviso visual al 100%.",
-  },
-  {
-    icon: BarChart3,
-    title: "Gráficas claras",
-    description: "Ingresos vs gastos, gasto por categoría y tendencias. Entiende tu dinero de un vistazo.",
-  },
-  {
-    icon: Users,
-    title: "En pareja",
-    description: "Vista conjunta del dinero de los dos, con consentimiento. Las cuentas claras de verdad.",
   },
 ];
 
@@ -276,22 +241,10 @@ export default function HomePage() {
               Registrar, controlar y ahorrar. Sin hojas de cálculo, sin fricción.
             </p>
           </div>
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f) => (
-              <div
-                key={f.title}
-                className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm transition-transform hover:-translate-y-1"
-              >
-                <span
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl"
-                  style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}
-                >
-                  <f.icon className="h-6 w-6" />
-                </span>
-                <h3 className="mt-5 text-lg font-bold text-foreground">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.description}</p>
-              </div>
-            ))}
+
+          {/* Carrusel 3D de cards de funciones */}
+          <div className="mt-12">
+            <CardCarousel />
           </div>
         </div>
       </section>
