@@ -313,7 +313,6 @@ function QuickContribute({ categories, onOpen }: { categories: CategoryView[]; o
 
 function CategoryDialog({ editing, onClose }: { editing: CatEditing; onClose: () => void }) {
   const router = useRouter();
-  const isNew = editing === "new";
   const item = editing && editing !== "new" ? editing : null;
 
   const [name, setName] = React.useState("");
