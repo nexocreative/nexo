@@ -173,14 +173,19 @@ export interface DashboardData {
   topAlert: { cat: CategoryDef; spent: number; limit: number; pct: number } | null;
   recent: TxView[];
   nomina: { needsConfirmation: boolean; expected: number } | null;
+  bars: { month: string; income: number; expense: number }[];
+  savingsGoal:
+    | { name: string; current: number; target: number; pct: number; daysLeft: number }
+    | null;
 }
 
 export async function getDashboard(userId: string): Promise<DashboardData> {
   const now = new Date();
   const start = isoDate(startOfMonth(now));
   const end = isoDate(endOfMonth(now));
+  const barsFrom = isoDate(startOfMonth(subMonths(now, 5)));
 
-  const [{ data: monthTx }, { data: recentTx }, profile, { data: budgets }, { data: rules }] =
+  const [{ data: monthTx }, { data: recentTx }, profile, { data: budgets }, { data: rules }, { data: barsTx }, { data: goals }] =
     await Promise.all([
       supabaseAdmin()
         .from("transactions")
@@ -205,7 +210,46 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
         .eq("user_id", userId)
         .eq("type", "income")
         .eq("active", true),
+      supabaseAdmin()
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .is("vacation_id", null)
+        .gte("occurred_at", barsFrom),
+      supabaseAdmin()
+        .from("savings_goals")
+        .select("*")
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(1),
     ]);
+
+  // Objetivo de ahorro (si existe).
+  const rawGoal = (goals?.[0] as SavingsGoal) ?? null;
+  let savingsGoal: DashboardData["savingsGoal"] = null;
+  if (rawGoal) {
+    const target = Number(rawGoal.target_amount);
+    const current = Number(rawGoal.current_amount);
+    const pct = target > 0 ? Math.min(100, Math.max(0, Math.round((current / target) * 100))) : 0;
+    const daysLeft = Math.max(
+      0,
+      Math.ceil((new Date(rawGoal.target_date).getTime() - now.getTime()) / 86400000),
+    );
+    savingsGoal = { name: rawGoal.name, current, target, pct, daysLeft };
+  }
+
+  // Barras ingresos vs gastos de los últimos 6 meses.
+  const barsAll = (barsTx as Transaction[]) ?? [];
+  const bars = Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(startOfMonth(now), 5 - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const inM = barsAll.filter((t) => t.occurred_at.slice(0, 7) === key);
+    return {
+      month: monthShort(d),
+      income: sum(inM.filter((t) => t.type === "income")),
+      expense: sum(inM.filter((t) => t.type === "expense")),
+    };
+  });
 
   const tx = (monthTx as Transaction[]) ?? [];
   const expenses = tx.filter((t) => t.type === "expense");
@@ -250,6 +294,8 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     topAlert,
     recent: ((recentTx as Transaction[]) ?? []).map(withCategory),
     nomina,
+    bars,
+    savingsGoal,
   };
 }
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Camera, Mic, Plus, TrendingUp, AlertTriangle, ShieldCheck, CalendarDays, Banknote } from "lucide-react";
+import { Plus, TrendingUp, AlertTriangle, ShieldCheck, Banknote, PiggyBank } from "lucide-react";
 import { requireUserId, getDashboard } from "@/lib/data/queries";
-import { ProgressRing } from "@/components/ui/progress-ring";
 import { NominaCard } from "@/components/dashboard/nomina-card";
+import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
@@ -10,15 +10,12 @@ import { PALETTE } from "@/lib/constants";
 export default async function DashboardPage() {
   const userId = await requireUserId();
   const d = await getDashboard(userId);
-  const remaining = d.monthlyBudget ? d.monthlyBudget - d.monthExpense : null;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Columna principal */}
-      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        {/* Balance del mes */}
-        <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-6">
+    <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+      {/* Fila 1 · izquierda: Balance del mes */}
+      <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:col-span-2">
+          <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Balance del mes
@@ -31,31 +28,28 @@ export default async function DashboardPage() {
                 {d.savingsRate}% de ahorro este mes
               </p>
             </div>
-            <ProgressRing value={d.savingsRate} size={104} stroke={11} color={PALETTE.lila}>
-              <span className="text-xl font-extrabold text-foreground">{d.savingsRate}%</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Ahorro
-              </span>
-            </ProgressRing>
+            <Link
+              href="/dashboard/anadir"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
+            >
+              <Plus className="h-4 w-4" /> Registrar movimiento
+            </Link>
           </div>
 
-          <div className="mt-7 grid grid-cols-3 gap-3">
-            <Stat label="Ingresos" value={formatEUR(d.monthIncome)} positive />
-            <Stat label="Gastos" value={formatEUR(d.monthExpense)} />
-            <Stat label="Presup. restante" value={remaining !== null ? formatEUR(remaining) : "—"} />
-          </div>
-        </section>
+        <div className="mt-7 grid grid-cols-2 gap-3">
+          <Stat label="Ingresos" value={formatEUR(d.monthIncome)} positive />
+          <Stat label="Gastos" value={formatEUR(d.monthExpense)} />
+        </div>
+      </section>
 
-        {/* Acceso rápido a añadir gasto */}
-        <section>
-          <h2 className="mb-3 text-lg font-bold tracking-tight">Registrar un gasto</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <QuickAdd icon={Camera} title="Foto ticket" desc="Escanea con IA" bg={PALETTE.mintSoft} fg={PALETTE.mintInk} />
-            <QuickAdd icon={Mic} title="Por voz" desc="Dilo en alto" bg={PALETTE.lilaSoft} fg={PALETTE.lilaInk} />
-            <QuickAdd icon={Plus} title="Manual" desc="Paso a paso" bg={PALETTE.peachSoft} fg={PALETTE.peachInk} />
-          </div>
-        </section>
+      {/* Fila 1 · derecha: nómina + alerta */}
+      <div className="flex flex-col gap-6 lg:self-stretch">
+        {d.nomina?.needsConfirmation && <NominaCard expected={d.nomina.expected} />}
+        <AlertCard d={d} />
+      </div>
 
+      {/* Fila 2 · izquierda: movimientos + gráfica */}
+      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
         {/* Últimos movimientos */}
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between">
@@ -102,47 +96,31 @@ export default async function DashboardPage() {
             </ul>
           )}
         </section>
-      </div>
 
-      {/* Columna lateral */}
-      <div className="flex flex-col gap-6">
-        {d.nomina?.needsConfirmation && <NominaCard expected={d.nomina.expected} />}
-
-        <AlertCard d={d} />
-
-        {/* Mini-recordatorio mes */}
+        {/* Ingresos vs Gastos */}
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-foreground">Este mes</h3>
-            <CalendarDays className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Llevas <span className="font-semibold text-foreground">{formatEUR(d.monthExpense)}</span> en gastos
-            {d.monthlyBudget ? (
-              <>
-                {" "}de un presupuesto de{" "}
-                <span className="font-semibold text-foreground">{formatEUR(d.monthlyBudget)}</span>.
-              </>
-            ) : (
-              "."
-            )}
-          </p>
-          {d.monthlyBudget && (
-            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.min(100, d.budgetSpentPct)}%`,
-                  backgroundColor: d.budgetState === "ok" ? PALETTE.lila : d.budgetState === "warning" ? PALETTE.peach : PALETTE.peachInk,
-                }}
-              />
+            <h3 className="text-base font-bold text-foreground">Ingresos vs Gastos</h3>
+            <div className="flex items-center gap-4 text-xs font-semibold text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.lila }} />
+                Ingresos
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PALETTE.mint }} />
+                Gastos
+              </span>
             </div>
-          )}
-          <Link href="/dashboard/limites" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
-            Gestionar límites
-          </Link>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Últimos 6 meses</p>
+          <div className="mt-4">
+            <IncomeExpenseBars data={d.bars} />
+          </div>
         </section>
       </div>
+
+      {/* Fila 2 · derecha: objetivo de ahorro */}
+      <SavingsGoalCard goal={d.savingsGoal} />
     </div>
   );
 }
@@ -158,32 +136,51 @@ function Stat({ label, value, positive }: { label: string; value: string; positi
   );
 }
 
-function QuickAdd({
-  icon: Icon,
-  title,
-  desc,
-  bg,
-  fg,
-}: {
-  icon: typeof Camera;
-  title: string;
-  desc: string;
-  bg: string;
-  fg: string;
-}) {
+function SavingsGoalCard({ goal }: { goal: Awaited<ReturnType<typeof getDashboard>>["savingsGoal"] }) {
   return (
-    <Link
-      href="/dashboard/anadir"
-      className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-transform hover:-translate-y-0.5"
+    <section
+      className="rounded-3xl border border-border/60 p-6 shadow-sm"
+      style={{ background: `linear-gradient(135deg, ${PALETTE.lilaSoft}, hsl(var(--card)))` }}
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: bg, color: fg }}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <div>
-        <p className="text-sm font-bold text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{desc}</p>
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-bold text-foreground">Objetivo de ahorro</h3>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.lila, color: "#fff" }}>
+          <PiggyBank className="h-[18px] w-[18px]" />
+        </span>
       </div>
-    </Link>
+
+      {goal ? (
+        <>
+          <p className="mt-3 text-sm font-semibold text-foreground">{goal.name}</p>
+          <p className="mt-1 text-2xl font-extrabold tracking-tight text-foreground">
+            {formatEUR(goal.current)}
+            <span className="text-sm font-semibold text-muted-foreground"> / {formatEUR(goal.target)}</span>
+          </p>
+          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/70">
+            <div className="h-full rounded-full" style={{ width: `${goal.pct}%`, backgroundColor: PALETTE.lila }} />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="font-semibold" style={{ color: PALETTE.lilaInk }}>{goal.pct}% completado</span>
+            <span>{goal.daysLeft} días restantes</span>
+          </div>
+          <Link href="/dashboard/juntos" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
+            Ver objetivo
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Aún no tienes un objetivo de ahorro. Crea uno para empezar a seguir tu progreso.
+          </p>
+          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/70">
+            <div className="h-full rounded-full" style={{ width: "0%", backgroundColor: PALETTE.lila }} />
+          </div>
+          <Link href="/dashboard/juntos" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
+            Crear objetivo
+          </Link>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -193,7 +190,7 @@ function AlertCard({ d }: { d: Awaited<ReturnType<typeof getDashboard>> }) {
     const critical = alert.pct >= 90;
     return (
       <section
-        className="rounded-3xl border p-6 shadow-sm"
+        className="flex h-full flex-col rounded-3xl border p-6 shadow-sm"
         style={{
           borderColor: PALETTE.peach,
           background: `linear-gradient(135deg, ${PALETTE.peachSoft}, ${PALETTE.lilaSoft})`,
@@ -225,7 +222,7 @@ function AlertCard({ d }: { d: Awaited<ReturnType<typeof getDashboard>> }) {
     );
   }
   return (
-    <section className="rounded-3xl border border-border/60 p-6 shadow-sm" style={{ background: `linear-gradient(135deg, ${PALETTE.mintSoft}, hsl(var(--card)))` }}>
+    <section className="flex h-full flex-col rounded-3xl border border-border/60 p-6 shadow-sm" style={{ background: `linear-gradient(135deg, ${PALETTE.mintSoft}, hsl(var(--card)))` }}>
       <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.mint, color: PALETTE.mintInk }}>
         <ShieldCheck className="h-5 w-5" />
       </span>
