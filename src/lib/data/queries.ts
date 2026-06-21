@@ -164,6 +164,16 @@ export async function materializeRecurring(userId: string): Promise<void> {
 // Dashboard
 // ---------------------------------------------------------------------------
 
+export interface RecentItem {
+  id: string;
+  type: "income" | "expense" | "savings";
+  title: string;
+  subtitle: string;
+  amount: number; // siempre positivo
+  date: string; // ISO date
+  categoryKey: string | null; // para el icono de categoría (gastos)
+}
+
 export interface DashboardData {
   monthIncome: number;
   monthExpense: number;
@@ -173,7 +183,7 @@ export interface DashboardData {
   budgetSpentPct: number; // 0..100
   budgetState: BudgetState;
   topAlert: { cat: CategoryDef; spent: number; limit: number; pct: number } | null;
-  recent: TxView[];
+  recent: RecentItem[];
   nomina: { needsConfirmation: boolean; expected: number } | null;
   bars: { month: string; income: number; expense: number }[];
   savings: { thisMonth: number; monthlyPlan: number; total: number };
@@ -217,19 +227,18 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
         .is("vacation_id", null)
         .gte("occurred_at", barsFrom),
       supabaseAdmin().from("savings_entries").select("*").eq("user_id", userId),
-      supabaseAdmin().from("savings_categories").select("monthly_plan").eq("user_id", userId),
+      supabaseAdmin().from("savings_categories").select("id, name, monthly_plan").eq("user_id", userId),
     ]);
 
   // Ahorro: total del mes en curso, plan mensual y acumulado histórico.
   const mk = monthKey(now);
+  const sCatsArr = (savingsCats as { id: string; name: string; monthly_plan: number }[]) ?? [];
+  const sCatName = new Map(sCatsArr.map((c) => [c.id, c.name]));
   const sEntries = (savingsEntries as SavingsEntry[]) ?? [];
   const monthSavings = sum(sEntries.filter((e) => e.month === mk));
   const savings = {
     thisMonth: monthSavings,
-    monthlyPlan: ((savingsCats as { monthly_plan: number }[]) ?? []).reduce(
-      (a, c) => a + Number(c.monthly_plan),
-      0,
-    ),
+    monthlyPlan: sCatsArr.reduce((a, c) => a + Number(c.monthly_plan), 0),
     total: sum(sEntries),
   };
 
@@ -279,6 +288,32 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     nomina = { needsConfirmation: !already, expected: Number(nominaRule.amount) };
   }
 
+  // Últimos movimientos: transacciones + aportes de ahorro, ordenados por fecha.
+  const recentTxItems: RecentItem[] = ((recentTx as Transaction[]) ?? []).map(withCategory).map((t) => ({
+    id: t.id,
+    type: t.type,
+    title: t.merchant ?? t.description ?? t.cat.label,
+    subtitle: t.type === "expense" ? t.cat.label : "Ingreso",
+    amount: Number(t.amount),
+    date: t.occurred_at,
+    categoryKey: t.category,
+  }));
+  const recentSavingsItems: RecentItem[] = [...sEntries]
+    .sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1))
+    .slice(0, 5)
+    .map((e) => ({
+      id: e.id,
+      type: "savings" as const,
+      title: `Ahorro · ${(e.category_id && sCatName.get(e.category_id)) || "Ahorro"}`,
+      subtitle: e.source === "plan" ? "Ahorro programado" : "Ahorro",
+      amount: Number(e.amount),
+      date: (e.created_at ?? `${e.month}-01`).slice(0, 10),
+      categoryKey: null,
+    }));
+  const recent = [...recentTxItems, ...recentSavingsItems]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, 5);
+
   return {
     monthIncome,
     monthExpense,
@@ -288,7 +323,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     budgetSpentPct,
     budgetState: monthlyBudget ? budgetState(monthExpense, monthlyBudget) : "ok",
     topAlert,
-    recent: ((recentTx as Transaction[]) ?? []).map(withCategory),
+    recent,
     nomina,
     bars,
     savings,

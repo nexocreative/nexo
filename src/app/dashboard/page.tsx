@@ -78,23 +78,29 @@ export default async function DashboardPage() {
                   style={
                     t.type === "income"
                       ? { backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }
-                      : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                      : t.type === "savings"
+                        ? { backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }
+                        : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
                   }
                 >
-                  {t.type === "income" ? <Banknote className="h-[18px] w-[18px]" /> : <CategoryIcon category={t.category} className="h-[18px] w-[18px]" />}
+                  {t.type === "income" ? (
+                    <Banknote className="h-[18px] w-[18px]" />
+                  ) : t.type === "savings" ? (
+                    <PiggyBank className="h-[18px] w-[18px]" />
+                  ) : (
+                    <CategoryIcon category={t.categoryKey} className="h-[18px] w-[18px]" />
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {t.merchant ?? t.description ?? t.cat.label}
-                  </p>
+                  <p className="truncate text-sm font-semibold text-foreground">{t.title}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {new Date(t.occurred_at).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
-                    {t.type === "expense" ? ` · ${t.cat.label}` : " · Ingreso"}
+                    {new Date(t.date).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
+                    {` · ${t.subtitle}`}
                   </p>
                 </div>
                 <p
                   className="text-sm font-bold"
-                  style={{ color: t.type === "income" ? PALETTE.mintInk : "hsl(var(--foreground))" }}
+                  style={{ color: t.type === "income" ? PALETTE.mintInk : t.type === "savings" ? PALETTE.lilaInk : "hsl(var(--foreground))" }}
                 >
                   {formatEUR(t.type === "income" ? t.amount : -t.amount, { sign: true })}
                 </p>
