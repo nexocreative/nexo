@@ -111,3 +111,37 @@
     display: none;
   }
 }
+
+/* Animaciones del carrusel de opiniones (scroll reel) */
+@keyframes scroll-reel-char-rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scroll-reel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+.scroll-reel-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: scroll-reel-char-rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scroll-reel-exit {
+  animation: scroll-reel-exit 240ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reel-char {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

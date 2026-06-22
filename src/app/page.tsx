@@ -6,13 +6,13 @@ import {
   ArrowRight,
   Check,
   Sparkles,
-  Quote,
   ChevronDown,
 } from "lucide-react";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import DisplayCards from "@/components/ui/display-cards";
 import { NexoOrbital } from "@/components/ui/nexo-orbital";
 import { CardCarousel } from "@/components/ui/card-carousel";
+import { ScrollReelTestimonials } from "@/components/ui/scroll-reel-testimonials";
 import { PALETTE } from "@/lib/constants";
 
 const heroBg = {
@@ -54,19 +54,34 @@ const showcaseCards = [
 
 const testimonials = [
   {
-    quote: "Por fin sé en qué se me va el sueldo. Le hago una foto al ticket y a otra cosa.",
-    name: "Lucía",
-    role: "Diseñadora · 29",
+    quote: "Por fin sé en qué se me va el sueldo. Foto al ticket y a otra cosa.",
+    author: "Lucía · Diseñadora",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80&auto=format&fit=crop",
+    alt: "Retrato de Lucía",
   },
   {
     quote: "Apuntar los gastos por voz mientras conduzco es magia. Ya no se me olvida nada.",
-    name: "Diego",
-    role: "Comercial · 34",
+    author: "Diego · Comercial",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80&auto=format&fit=crop",
+    alt: "Retrato de Diego",
   },
   {
-    quote: "Mi pareja y yo dejamos de discutir por dinero. Ahora lo vemos todo en el mismo sitio.",
-    name: "Marta",
-    role: "Enfermera · 31",
+    quote: "Mi pareja y yo dejamos de discutir por dinero. Lo vemos todo en el mismo sitio.",
+    author: "Marta · Enfermera",
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80&auto=format&fit=crop",
+    alt: "Retrato de Marta",
+  },
+  {
+    quote: "Llevo mis ingresos y gastos al día sin esfuerzo. Nunca fue tan fácil.",
+    author: "Carlos · Autónomo",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80&auto=format&fit=crop",
+    alt: "Retrato de Carlos",
+  },
+  {
+    quote: "En tres meses ahorré para mis vacaciones casi sin enterarme. Brutal.",
+    author: "Ana · Profesora",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80&auto=format&fit=crop",
+    alt: "Retrato de Ana",
   },
 ];
 
@@ -244,7 +259,7 @@ export default function HomePage() {
       </section>
 
       {/* Opiniones */}
-      <section id="opiniones" className="bg-muted/40 py-20 lg:py-28">
+      <section id="opiniones" className="py-20 lg:py-28">
         <div className="mx-auto max-w-6xl px-5 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
@@ -254,30 +269,8 @@ export default function HomePage() {
               Lo que dicen quienes dejaron el caos financiero atrás.
             </p>
           </div>
-          <div className="mt-14 grid gap-5 md:grid-cols-3">
-            {testimonials.map((t) => (
-              <figure
-                key={t.name}
-                className="flex flex-col rounded-3xl border border-border/60 bg-card p-7 shadow-sm"
-              >
-                <Quote className="h-7 w-7" style={{ color: PALETTE.lila }} />
-                <blockquote className="mt-4 flex-1 text-base leading-relaxed text-foreground">
-                  “{t.quote}”
-                </blockquote>
-                <figcaption className="mt-6 flex items-center gap-3">
-                  <span
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
-                    style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}
-                  >
-                    {t.name[0]}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.role}</p>
-                  </div>
-                </figcaption>
-              </figure>
-            ))}
+          <div className="mt-14 flex justify-center">
+            <ScrollReelTestimonials testimonials={testimonials} />
           </div>
         </div>
       </section>
