@@ -65,6 +65,38 @@ export async function createTransaction(input: unknown): Promise<ActionResult> {
   return { ok: true };
 }
 
+// --- Añadir ingreso (con categoría libre: Salario, Otros, o personalizada) --
+
+const incomeSchema = z.object({
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  category: z.string().trim().min(1, "La categoría es obligatoria").max(60),
+  description: z.string().trim().max(240).optional(),
+  occurred_at: z.string().optional(),
+});
+
+export async function createIncome(input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = incomeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const d = parsed.data;
+  const { error } = await supabaseAdmin().from("transactions").insert({
+    user_id: userId,
+    type: "income",
+    amount: d.amount,
+    category: d.category,
+    // Se guarda también como "merchant" para que se muestre como título del movimiento.
+    merchant: d.category,
+    description: d.description || null,
+    occurred_at: d.occurred_at || new Date().toISOString().slice(0, 10),
+    source: "manual",
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
 /** Elimina un movimiento (gasto o ingreso) del usuario. */
 export async function deleteTransaction(id: string): Promise<ActionResult> {
   const userId = await requireUserId();

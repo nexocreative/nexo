@@ -1,9 +1,9 @@
-import Link from "next/link";
-import { Plus, ArrowDownRight, ArrowUpRight, PiggyBank } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, PiggyBank } from "lucide-react";
 import { requireUserId, getMovements } from "@/lib/data/queries";
 import { MovementsFilters } from "@/components/dashboard/movements-filters";
 import { MovementsList, type MovementRow } from "@/components/dashboard/movements-list";
 import { RecurringManager, type RecItem } from "@/components/dashboard/recurring-manager";
+import { AddMovementMenu } from "@/components/dashboard/add-movement-menu";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
@@ -68,12 +68,7 @@ export default async function MovimientosPage({
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Link
-          href="/dashboard/anadir"
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
-        >
-          <Plus className="h-4 w-4" /> Añadir gasto
-        </Link>
+        <AddMovementMenu incomeCategories={data.incomeCategories} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

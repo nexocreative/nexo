@@ -352,6 +352,7 @@ export interface MovementsData {
   transactions: TxView[];
   savingsMovements: SavingsMovement[];
   recurring: (RecurringRule & { cat: CategoryDef })[];
+  incomeCategories: string[];
 }
 
 export async function getMovements(
@@ -379,7 +380,7 @@ export async function getMovements(
   if (opts?.category) query = query.eq("category", opts.category);
 
   const mk = monthKey(monthDate);
-  const [{ data: tx }, { data: rules }, { data: sEntries }, { data: sCats }] = await Promise.all([
+  const [{ data: tx }, { data: rules }, { data: sEntries }, { data: sCats }, { data: incomeCats }] = await Promise.all([
     query,
     supabaseAdmin()
       .from("recurring_rules")
@@ -393,7 +394,24 @@ export async function getMovements(
       .eq("month", mk)
       .order("created_at", { ascending: false }),
     supabaseAdmin().from("savings_categories").select("id, name").eq("user_id", userId),
+    supabaseAdmin()
+      .from("transactions")
+      .select("category")
+      .eq("user_id", userId)
+      .eq("type", "income")
+      .not("category", "is", null),
   ]);
+
+  // Categorías de ingreso: por defecto + las que ya ha usado el usuario.
+  const incomeCategories = Array.from(
+    new Set([
+      "Salario",
+      "Otros",
+      ...(((incomeCats as { category: string | null }[]) ?? [])
+        .map((r) => r.category)
+        .filter((c): c is string => !!c)),
+    ]),
+  );
 
   const transactions = ((tx as Transaction[]) ?? []).map(withCategory);
   const income = sum(transactions.filter((t) => t.type === "income"));
@@ -445,6 +463,7 @@ export async function getMovements(
       ...r,
       cat: getCategory(r.category),
     })),
+    incomeCategories,
   };
 }
 
