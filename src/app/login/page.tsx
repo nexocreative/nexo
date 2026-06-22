@@ -22,11 +22,9 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4">
-      <Link
-        href="/"
-        className="mb-8 text-2xl font-bold tracking-tight"
-      >
-        Nexo
+      <Link href="/" className="mb-8">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-nexo.svg" alt="Nexo" width={132} height={43} className="h-auto w-[132px]" />
       </Link>
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
