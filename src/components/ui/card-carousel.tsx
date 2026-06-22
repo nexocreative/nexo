@@ -26,6 +26,12 @@ export function CardCarousel() {
   const frameId = useRef<number>(0);
   const progress = useRef<number>(0);
 
+  // Arrastre manual con inercia.
+  const dragging = useRef(false);
+  const lastX = useRef(0);
+  const velocity = useRef(0);
+  const spacingRef = useRef(180);
+
   const [metrics, setMetrics] = useState({ cardW: 300, cardH: 250 });
 
   useEffect(() => {
@@ -42,7 +48,16 @@ export function CardCarousel() {
 
   useEffect(() => {
     const renderLoop = () => {
-      progress.current += 0.0016;
+      // Mientras se arrastra manda el dedo/ratón; al soltar hay inercia y luego
+      // un avance automático suave.
+      if (!dragging.current) {
+        if (Math.abs(velocity.current) > 0.0006) {
+          progress.current += velocity.current;
+          velocity.current *= 0.92;
+        } else {
+          progress.current += 0.0016;
+        }
+      }
 
       const cards = cardsRefs.current;
       const { cardW } = metrics;
@@ -52,9 +67,10 @@ export function CardCarousel() {
       const diffFromRound = continuousProgress - roundedIndex;
       // Imán: cada card "descansa" un instante en el centro para poder leerla.
       const easedDiff = (Math.sign(diffFromRound) * Math.pow(Math.abs(diffFromRound) * 2, 4.2)) / 2;
-      const virtualActiveIndex = roundedIndex + easedDiff;
+      const virtualActiveIndex = dragging.current ? continuousProgress : roundedIndex + easedDiff;
 
       const spacing = cardW * 0.6;
+      spacingRef.current = spacing;
 
       for (let i = 0; i < cardCount; i++) {
         const card = cards[i];
@@ -93,8 +109,44 @@ export function CardCarousel() {
     return () => cancelAnimationFrame(frameId.current);
   }, [metrics, cardCount]);
 
+  function onPointerDown(e: React.PointerEvent) {
+    dragging.current = true;
+    lastX.current = e.clientX;
+    velocity.current = 0;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!dragging.current) return;
+    const dx = e.clientX - lastX.current;
+    lastX.current = e.clientX;
+    const d = dx / (spacingRef.current || 180);
+    progress.current -= d;
+    velocity.current = -d;
+  }
+  function endDrag(e: React.PointerEvent) {
+    if (!dragging.current) return;
+    dragging.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
+  }
+
   return (
-    <div className="relative flex w-full items-center justify-center overflow-hidden" style={{ height: metrics.cardH + 60 }}>
+    <div
+      className="relative flex w-full cursor-grab touch-pan-y select-none items-center justify-center overflow-hidden active:cursor-grabbing"
+      style={{ height: metrics.cardH + 60 }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerLeave={endDrag}
+      onPointerCancel={endDrag}
+    >
       <div
         ref={sceneRef}
         className="relative flex h-full w-full items-center justify-center"

@@ -308,7 +308,6 @@ export default function HomePage() {
       {/* CTA final */}
       <section className="mx-auto w-full max-w-6xl px-5 pb-24 lg:px-8">
         <div className="relative isolate overflow-hidden rounded-[2rem] border border-border/60 px-6 py-16 text-center shadow-lg sm:px-12" style={heroBg}>
-          <DottedSurface />
           <div className="relative z-10">
             <h2 className="mx-auto max-w-2xl text-balance text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
               Tus cuentas claras empiezan hoy
