@@ -63,7 +63,7 @@ export function AddMovementMenu({ incomeCategories }: { incomeCategories: string
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-primary/90">
             <Plus className="h-4 w-4" /> Añadir movimiento
             <ChevronDown className="h-4 w-4 opacity-80" />
           </button>
