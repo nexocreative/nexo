@@ -7,7 +7,7 @@ import { MobileNav } from "@/components/dashboard/mobile-nav";
 
 const titles: Record<string, string> = {
   "/dashboard": "Resumen",
-  "/dashboard/anadir": "Añadir Gasto",
+  "/dashboard/anadir": "Añadir movimiento",
   "/dashboard/movimientos": "Movimientos",
   "/dashboard/limites": "Límites y alertas",
   "/dashboard/ahorro": "Ahorro",

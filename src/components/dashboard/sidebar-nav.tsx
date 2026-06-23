@@ -16,7 +16,7 @@ import {
 
 const links = [
   { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
-  { href: "/dashboard/anadir", label: "Añadir Gasto", icon: PlusCircle },
+  { href: "/dashboard/anadir", label: "Añadir movimiento", icon: PlusCircle },
   { href: "/dashboard/movimientos", label: "Movimientos", icon: ArrowLeftRight },
   { href: "/dashboard/limites", label: "Límites", icon: Gauge },
   { href: "/dashboard/ahorro", label: "Ahorro", icon: PiggyBank },
