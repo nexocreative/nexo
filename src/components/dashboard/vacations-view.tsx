@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square } from "lucide-react";
+import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, type LucideIcon } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import {
@@ -15,6 +15,7 @@ import {
 import { startVacation, closeVacation, addVacationExpense } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface ExpenseRow {
   id: string;
@@ -250,17 +251,17 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
   );
 }
 
-const VAC_CATEGORIES = [
-  { key: "alojamiento",    label: "Alojamiento" },
-  { key: "vuelos",         label: "Vuelos" },
-  { key: "transporte",     label: "Transporte" },
-  { key: "coche_alquiler", label: "Alquiler de coche" },
-  { key: "restaurantes",   label: "Restaurantes" },
-  { key: "entradas",       label: "Entradas y tickets" },
-  { key: "ocio",           label: "Ocio y actividades" },
-  { key: "compras",        label: "Compras" },
-  { key: "seguro",         label: "Seguro de viaje" },
-  { key: "otros",          label: "Otros" },
+const VAC_CATEGORIES: { key: string; label: string; icon: LucideIcon }[] = [
+  { key: "alojamiento",    label: "Alojamiento",       icon: BedDouble },
+  { key: "vuelos",         label: "Vuelos",             icon: Plane },
+  { key: "transporte",     label: "Transporte",         icon: Bus },
+  { key: "coche_alquiler", label: "Alquiler de coche",  icon: Car },
+  { key: "restaurantes",   label: "Restaurantes",       icon: UtensilsCrossed },
+  { key: "entradas",       label: "Entradas y tickets", icon: Ticket },
+  { key: "ocio",           label: "Ocio y actividades", icon: Gamepad2 },
+  { key: "compras",        label: "Compras",            icon: ShoppingBag },
+  { key: "seguro",         label: "Seguro de viaje",    icon: Shield },
+  { key: "otros",          label: "Otros",              icon: Package },
 ];
 
 type VacMethod = "photo" | "voice" | "manual";
@@ -474,16 +475,27 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
                 className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
               />
             </div>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-            >
-              <option value="">Categoría (opcional)</option>
-              {VAC_CATEGORIES.map((c) => (
-                <option key={c.key} value={c.key}>{c.label}</option>
-              ))}
-            </select>
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Categoría (opcional)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {VAC_CATEGORIES.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setCategory(category === c.key ? "" : c.key)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                      category === c.key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/70",
+                    )}
+                  >
+                    <c.icon className="h-3 w-3" />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
