@@ -589,7 +589,7 @@ const vacExpenseSchema = z.object({
   concepto: z.string().trim().min(1, "El concepto es obligatorio").max(120),
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
   occurred_at: z.string().optional(),
-  category: z.enum(CATEGORY_KEYS).nullable().optional(),
+  category: z.string().trim().max(60).nullable().optional(),
   notas: z.string().trim().max(280).optional(),
 });
 
