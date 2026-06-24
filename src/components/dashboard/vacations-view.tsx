@@ -14,7 +14,6 @@ import {
 import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 
 interface ExpenseRow {
   id: string;
