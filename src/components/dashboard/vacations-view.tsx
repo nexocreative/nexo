@@ -265,7 +265,7 @@ const VAC_CATEGORIES: { key: string; label: string; icon: LucideIcon }[] = [
 const VAC_CAT_MAP = Object.fromEntries(VAC_CATEGORIES.map((c) => [c.key, c]));
 
 function VacIcon({ category, className }: { category: string | null; className?: string }) {
-  const Icon: LucideIcon = (category && VAC_CAT_MAP[category]?.icon) ?? Package;
+  const Icon: LucideIcon = (category ? VAC_CAT_MAP[category]?.icon : undefined) ?? Package;
   return <Icon className={className} />;
 }
 
