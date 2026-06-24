@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Palmtree, Plus, Plane, Check, Luggage } from "lucide-react";
+import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import {
@@ -251,14 +251,93 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
   );
 }
 
+type VacMethod = "photo" | "voice" | "manual";
+
+const vacMethods: { key: VacMethod; label: string; icon: typeof Camera; bg: string; fg: string }[] = [
+  { key: "photo", label: "Ticket", icon: Camera, bg: PALETTE.mintSoft, fg: PALETTE.mintInk },
+  { key: "voice", label: "Voz", icon: Mic, bg: PALETTE.lilaSoft, fg: PALETTE.lilaInk },
+  { key: "manual", label: "Manual", icon: PenLine, bg: PALETTE.peachSoft, fg: PALETTE.peachInk },
+];
+
 function AddExpenseCard({ vacationId }: { vacationId: string }) {
   const router = useRouter();
+  const [method, setMethod] = React.useState<VacMethod>("manual");
   const [concepto, setConcepto] = React.useState("");
   const [amount, setAmount] = React.useState("");
   const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [category, setCategory] = React.useState("");
   const [notas, setNotas] = React.useState("");
   const [pending, setPending] = React.useState(false);
+  const [analyzing, setAnalyzing] = React.useState(false);
+  const [recording, setRecording] = React.useState(false);
+  const [detected, setDetected] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const chunksRef = React.useRef<Blob[]>([]);
+
+  function pickMethod(m: VacMethod) {
+    setMethod(m);
+    setDetected(false);
+    setRecording(false);
+    if (m === "manual") { setConcepto(""); setAmount(""); }
+  }
+
+  async function analyzePhoto(file: File) {
+    setAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/ticket", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error ?? "No se pudo analizar el ticket"); return; }
+      const d = json.data;
+      if (d.comercio) setConcepto(d.comercio);
+      if (d.importe) setAmount(String(d.importe));
+      if (d.categoria) setCategory(d.categoria);
+      if (d.fecha) setDate(d.fecha);
+      setDetected(true);
+      toast.success("Ticket analizado · revisa los datos");
+    } catch { toast.error("Error de conexión al analizar el ticket"); }
+    finally { setAnalyzing(false); }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        analyzeVoice(new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" }));
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch { toast.error("No se pudo acceder al micrófono. Revisa los permisos."); }
+  }
+
+  function stopRecording() { mediaRecorderRef.current?.stop(); setRecording(false); }
+
+  async function analyzeVoice(blob: Blob) {
+    setAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", blob, "audio.webm");
+      const res = await fetch("/api/voice", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error ?? "No se pudo procesar la voz"); return; }
+      const d = json.data;
+      if (d.comercio) setConcepto(d.comercio);
+      if (d.importe) setAmount(String(d.importe));
+      if (d.categoria) setCategory(d.categoria);
+      if (d.fecha) setDate(d.fecha);
+      setDetected(true);
+      toast.success(`Entendido: "${json.transcript}"`);
+    } catch { toast.error("Error de conexión al procesar la voz"); }
+    finally { setAnalyzing(false); }
+  }
 
   async function submit() {
     setPending(true);
@@ -273,65 +352,142 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
     setPending(false);
     if (res.ok) {
       toast.success("Gasto añadido al viaje");
-      setConcepto("");
-      setAmount("");
-      setNotas("");
-      setCategory("");
+      setConcepto(""); setAmount(""); setNotas(""); setCategory("");
+      setDetected(false); setMethod("manual");
       router.refresh();
     } else toast.error(res.error);
   }
 
+  const showCapture = method !== "manual" && !detected;
+
   return (
     <section className="h-full rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
       <h3 className="text-base font-bold text-foreground">Añadir gasto del viaje</h3>
-      <p className="text-xs text-muted-foreground">Contabilidad interna · no afecta al total general hasta cerrar.</p>
+      <p className="text-xs text-muted-foreground">Contabilidad interna · no afecta al total hasta cerrar.</p>
+
+      {/* Selector de método */}
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {vacMethods.map((m) => (
+          <button
+            key={m.key}
+            onClick={() => pickMethod(m.key)}
+            className={`flex flex-col items-center rounded-xl border p-2.5 text-center transition-all hover:-translate-y-0.5 ${method === m.key ? "border-primary/50 ring-2 ring-primary/20" : "border-border/60 bg-card"}`}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: m.bg, color: m.fg }}>
+              <m.icon className="h-4 w-4" />
+            </span>
+            <p className="mt-1.5 text-[11px] font-bold text-primary">{m.label}</p>
+          </button>
+        ))}
+      </div>
+
       <div className="mt-4 space-y-3">
-        <input
-          value={concepto}
-          onChange={(e) => setConcepto(e.target.value)}
-          placeholder="Concepto (ej. Cena, Hotel)"
-          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-        />
-        <div className="flex gap-3">
-          <input
-            type="number"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Importe €"
-            className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-          />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-          />
-        </div>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-        >
-          <option value="">Categoría (opcional)</option>
-          {CATEGORIES.filter((c) => c.key !== "vacaciones").map((c) => (
-            <option key={c.key} value={c.key}>{c.label}</option>
-          ))}
-        </select>
-        <textarea
-          value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-          placeholder="Notas (opcional)"
-          rows={2}
-          className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-        />
-        <button
-          disabled={pending || !concepto || !amount}
-          onClick={submit}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-        >
-          <Plus className="h-4 w-4" /> Añadir gasto
-        </button>
+        {/* Zona de captura (foto o voz) */}
+        {showCapture && method === "photo" && (
+          <div className="rounded-2xl border border-dashed border-primary/30 bg-accent/40 p-5 text-center">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzePhoto(f); }}
+            />
+            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+              {analyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+            </span>
+            <p className="mt-2 text-xs font-semibold text-foreground">
+              {analyzing ? "Analizando con IA…" : "Sube o haz una foto del ticket"}
+            </p>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={analyzing}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              <Upload className="h-3.5 w-3.5" /> {analyzing ? "Procesando…" : "Subir / hacer foto"}
+            </button>
+          </div>
+        )}
+
+        {showCapture && method === "voice" && (
+          <div className="rounded-2xl border border-dashed border-primary/30 bg-accent/40 p-5 text-center">
+            <span className="relative mx-auto flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+              {recording && <span className="absolute inset-0 animate-ping rounded-xl" style={{ backgroundColor: PALETTE.lila, opacity: 0.4 }} />}
+              {analyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mic className="relative h-5 w-5" />}
+            </span>
+            <p className="mt-2 text-xs font-semibold text-foreground">
+              {analyzing ? "Transcribiendo con IA…" : recording ? "Escuchando… habla ahora" : "Pulsa y di el gasto en alto"}
+            </p>
+            {!recording ? (
+              <button
+                onClick={startRecording}
+                disabled={analyzing}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                <Mic className="h-3.5 w-3.5" /> {analyzing ? "Procesando…" : "Empezar a hablar"}
+              </button>
+            ) : (
+              <button
+                onClick={stopRecording}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#C2496B] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+              >
+                <Square className="h-3.5 w-3.5" /> Detener y analizar
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Formulario (siempre visible en manual; visible tras detección en foto/voz) */}
+        {(method === "manual" || detected) && (
+          <>
+            <input
+              value={concepto}
+              onChange={(e) => setConcepto(e.target.value)}
+              placeholder="Concepto (ej. Cena, Hotel)"
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+            />
+            <div className="flex gap-3">
+              <input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Importe €"
+                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+              />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+              />
+            </div>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+            >
+              <option value="">Categoría (opcional)</option>
+              {CATEGORIES.filter((c) => c.key !== "vacaciones").map((c) => (
+                <option key={c.key} value={c.key}>{c.label}</option>
+              ))}
+            </select>
+            <textarea
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Notas (opcional)"
+              rows={2}
+              className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+            />
+            <button
+              disabled={pending || !concepto || !amount}
+              onClick={submit}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              <Plus className="h-4 w-4" /> Añadir gasto
+            </button>
+          </>
+        )}
       </div>
     </section>
   );
