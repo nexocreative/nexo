@@ -677,3 +677,46 @@ export async function closeVacation(id: string): Promise<ActionResult> {
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
+
+export async function deleteVacationExpense(id: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("transactions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId)
+    .not("vacation_id", "is", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/vacaciones");
+  return { ok: true };
+}
+
+const updateVacExpenseSchema = z.object({
+  concepto: z.string().trim().min(1, "El concepto es obligatorio").max(120),
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  occurred_at: z.string().optional(),
+  category: z.string().trim().max(60).nullable().optional(),
+  notas: z.string().trim().max(280).optional(),
+});
+
+export async function updateVacationExpense(id: string, input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = updateVacExpenseSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  const d = parsed.data;
+  const { error } = await supabaseAdmin()
+    .from("transactions")
+    .update({
+      merchant: d.concepto,
+      amount: d.amount,
+      occurred_at: d.occurred_at,
+      category: d.category ?? null,
+      description: d.notas || null,
+    })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .not("vacation_id", "is", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/vacaciones");
+  return { ok: true };
+}

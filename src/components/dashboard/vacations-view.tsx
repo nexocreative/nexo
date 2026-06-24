@@ -3,16 +3,15 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, type LucideIcon } from "lucide-react";
+import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, Pencil, Trash2, X, type LucideIcon } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { CategoryIcon } from "@/components/dashboard/category-icon";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { startVacation, closeVacation, addVacationExpense } from "@/app/dashboard/actions";
+import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -148,7 +147,7 @@ export function VacationsView({
                     {detail.expenses.map((e) => (
                       <li key={e.id} className="flex items-center gap-3 py-3">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                          <CategoryIcon category={e.category} className="h-[18px] w-[18px]" />
+                          <VacIcon category={e.category} className="h-[18px] w-[18px]" />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
@@ -263,6 +262,13 @@ const VAC_CATEGORIES: { key: string; label: string; icon: LucideIcon }[] = [
   { key: "seguro",         label: "Seguro de viaje",    icon: Shield },
   { key: "otros",          label: "Otros",              icon: Package },
 ];
+
+const VAC_CAT_MAP = Object.fromEntries(VAC_CATEGORIES.map((c) => [c.key, c]));
+
+function VacIcon({ category, className }: { category: string | null; className?: string }) {
+  const Icon = (category && VAC_CAT_MAP[category]?.icon) ?? Package;
+  return <Icon className={className} />;
+}
 
 type VacMethod = "photo" | "voice" | "manual";
 
@@ -475,27 +481,16 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
                 className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
               />
             </div>
-            <div>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Categoría (opcional)</p>
-              <div className="flex flex-wrap gap-1.5">
-                {VAC_CATEGORIES.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => setCategory(category === c.key ? "" : c.key)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
-                      category === c.key
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/70",
-                    )}
-                  >
-                    <c.icon className="h-3 w-3" />
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+            >
+              <option value="">Categoría (opcional)</option>
+              {VAC_CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>{c.label}</option>
+              ))}
+            </select>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
@@ -518,6 +513,47 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
 }
 
 function ExpensesList({ vac }: { vac: ActiveVac }) {
+  const router = useRouter();
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [editConcepto, setEditConcepto] = React.useState("");
+  const [editAmount, setEditAmount] = React.useState("");
+  const [editDate, setEditDate] = React.useState("");
+  const [editCategory, setEditCategory] = React.useState("");
+  const [editNotas, setEditNotas] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  function openEdit(e: ExpenseRow) {
+    setEditId(e.id);
+    setEditConcepto(e.concepto ?? "");
+    setEditAmount(String(e.amount));
+    setEditDate(e.occurred_at);
+    setEditCategory(e.category ?? "");
+    setEditNotas(e.notas ?? "");
+  }
+
+  function cancelEdit() { setEditId(null); }
+
+  async function saveEdit() {
+    if (!editId) return;
+    setSaving(true);
+    const res = await updateVacationExpense(editId, {
+      concepto: editConcepto,
+      amount: editAmount,
+      occurred_at: editDate,
+      category: editCategory || null,
+      notas: editNotas || undefined,
+    });
+    setSaving(false);
+    if (res.ok) { toast.success("Gasto actualizado"); setEditId(null); router.refresh(); }
+    else toast.error(res.error);
+  }
+
+  async function remove(id: string) {
+    const res = await deleteVacationExpense(id);
+    if (res.ok) { toast.success("Gasto eliminado"); router.refresh(); }
+    else toast.error(res.error);
+  }
+
   return (
     <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
       <h3 className="text-base font-bold text-foreground">Gastos del viaje</h3>
@@ -526,18 +562,97 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
       ) : (
         <ul className="mt-3 divide-y divide-border/60">
           {vac.expenses.map((e) => (
-            <li key={e.id} className="flex items-center gap-4 py-3.5">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <CategoryIcon category={e.category} className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {fmtDay(e.occurred_at)}
-                  {e.notas ? ` · ${e.notas}` : ""}
-                </p>
-              </div>
-              <span className="shrink-0 text-sm font-bold text-foreground">{formatEUR(-e.amount, { sign: true })}</span>
+            <li key={e.id}>
+              {editId === e.id ? (
+                /* Formulario de edición inline */
+                <div className="space-y-2 py-3">
+                  <input
+                    value={editConcepto}
+                    onChange={(ev) => setEditConcepto(ev.target.value)}
+                    placeholder="Concepto"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editAmount}
+                      onChange={(ev) => setEditAmount(ev.target.value)}
+                      placeholder="Importe €"
+                      className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                    />
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(ev) => setEditDate(ev.target.value)}
+                      className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <select
+                    value={editCategory}
+                    onChange={(ev) => setEditCategory(ev.target.value)}
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                  >
+                    <option value="">Categoría (opcional)</option>
+                    {VAC_CATEGORIES.map((c) => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={editNotas}
+                    onChange={(ev) => setEditNotas(ev.target.value)}
+                    placeholder="Notas (opcional)"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      disabled={saving || !editConcepto || !editAmount}
+                      onClick={saveEdit}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      <Check className="h-4 w-4" /> Guardar
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Fila normal */
+                <div className="flex items-center gap-4 py-3.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                    <VacIcon category={e.category} className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {fmtDay(e.occurred_at)}
+                      {e.category && VAC_CAT_MAP[e.category] ? ` · ${VAC_CAT_MAP[e.category].label}` : ""}
+                      {e.notas ? ` · ${e.notas}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold text-foreground">{formatEUR(-e.amount, { sign: true })}</span>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      onClick={() => openEdit(e)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Editar gasto"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => remove(e.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-500"
+                      aria-label="Eliminar gasto"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
