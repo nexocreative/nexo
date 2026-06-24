@@ -62,14 +62,12 @@ export function VacationsView({
     <div className="space-y-6">
       {active ? (
         <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-          <div className="lg:col-span-2">
+          <div className="flex flex-col gap-6 lg:col-span-2">
             <ActiveCard vac={active} />
+            <ExpensesList vac={active} />
           </div>
           <div>
             <AddExpenseCard vacationId={active.id} />
-          </div>
-          <div className="lg:col-span-3">
-            <ExpensesList vac={active} />
           </div>
         </div>
       ) : (
