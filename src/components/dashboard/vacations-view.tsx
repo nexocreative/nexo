@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { startVacation, closeVacation, addVacationExpense } from "@/app/dashboard/actions";
-import { CATEGORIES } from "@/lib/constants";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
@@ -251,6 +250,19 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
   );
 }
 
+const VAC_CATEGORIES = [
+  { key: "alojamiento",    label: "Alojamiento" },
+  { key: "vuelos",         label: "Vuelos" },
+  { key: "transporte",     label: "Transporte" },
+  { key: "coche_alquiler", label: "Alquiler de coche" },
+  { key: "restaurantes",   label: "Restaurantes" },
+  { key: "entradas",       label: "Entradas y tickets" },
+  { key: "ocio",           label: "Ocio y actividades" },
+  { key: "compras",        label: "Compras" },
+  { key: "seguro",         label: "Seguro de viaje" },
+  { key: "otros",          label: "Otros" },
+];
+
 type VacMethod = "photo" | "voice" | "manual";
 
 const vacMethods: { key: VacMethod; label: string; icon: typeof Camera; bg: string; fg: string }[] = [
@@ -468,7 +480,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
               className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
             >
               <option value="">Categoría (opcional)</option>
-              {CATEGORIES.filter((c) => c.key !== "vacaciones").map((c) => (
+              {VAC_CATEGORIES.map((c) => (
                 <option key={c.key} value={c.key}>{c.label}</option>
               ))}
             </select>
