@@ -190,13 +190,13 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
       <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-60 blur-3xl" style={{ backgroundColor: PALETTE.peach }} />
       <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full opacity-50 blur-3xl" style={{ backgroundColor: PALETTE.lila }} />
 
-      <div className="relative flex flex-wrap items-center gap-7">
-        <ProgressRing value={vac.pct} size={140} stroke={13} color="#E8945B" trackColor="rgba(255,255,255,0.7)">
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-7">
+        <ProgressRing value={vac.pct} size={110} stroke={11} color="#E8945B" trackColor="rgba(255,255,255,0.7)">
           <span className="text-2xl font-extrabold text-foreground">{vac.pct}%</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">del presup.</span>
         </ProgressRing>
 
-        <div className="min-w-[220px] flex-1">
+        <div className="min-w-0 flex-1">
           <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ backgroundColor: PALETTE.peach, color: PALETTE.peachInk }}>
             <Palmtree className="h-3.5 w-3.5" /> Modo vacaciones activo
           </span>
