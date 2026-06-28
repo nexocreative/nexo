@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { getOpenAI, WHISPER_MODEL, VISION_MODEL } from "@/lib/openai";
+import { checkAndRecordRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
+  const userId = session.user.id;
 
   let file: File | null = null;
   try {
@@ -29,6 +31,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "El audio supera los 20 MB" }, { status: 413 });
   }
 
+  // Límite: máximo 3 grabaciones por minuto y usuario.
+  const rl = await checkAndRecordRateLimit(userId, "voice", 3, 60);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Has usado la voz varias veces seguidas. Espera un momento e inténtalo de nuevo." },
+      { status: 429 },
+    );
+  }
+
   // 1) Transcripción con Whisper
   let transcript = "";
   try {
@@ -39,8 +50,11 @@ export async function POST(req: Request) {
     });
     transcript = tr.text?.trim() ?? "";
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "error desconocido";
-    return NextResponse.json({ error: `No se pudo transcribir el audio: ${msg}` }, { status: 502 });
+    console.error("Error transcribiendo audio:", e instanceof Error ? e.message : e);
+    return NextResponse.json(
+      { error: "Ahora mismo no podemos procesar la voz. Inténtalo de nuevo más tarde." },
+      { status: 502 },
+    );
   }
   if (!transcript) {
     return NextResponse.json({ error: "No se entendió el audio. Inténtalo de nuevo." }, { status: 422 });
@@ -71,8 +85,11 @@ Reglas: si falta un dato usa "" / 0; "categoria" debe ser uno de los permitidos 
     });
     extracted = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "error desconocido";
-    return NextResponse.json({ error: `No se pudieron extraer los datos: ${msg}`, transcript }, { status: 502 });
+    console.error("Error extrayendo datos de voz:", e instanceof Error ? e.message : e);
+    return NextResponse.json(
+      { error: "Ahora mismo no podemos procesar la voz. Inténtalo de nuevo más tarde.", transcript },
+      { status: 502 },
+    );
   }
 
   const cat = String(extracted.categoria ?? "").toLowerCase();

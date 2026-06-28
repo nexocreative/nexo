@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { getServerAuthSession } from "@/lib/auth";
 import { getOpenAI, VISION_MODEL } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { checkAndRecordRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -66,6 +67,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "La imagen supera los 10 MB" }, { status: 413 });
   }
 
+  // Límite: máximo 3 análisis por minuto y usuario.
+  const rl = await checkAndRecordRateLimit(userId, "ticket", 3, 60);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Has analizado varios tickets seguidos. Espera un momento e inténtalo de nuevo." },
+      { status: 429 },
+    );
+  }
+
   const buf = Buffer.from(await file.arrayBuffer());
   const mime = file.type || "image/jpeg";
   const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
@@ -90,8 +100,11 @@ export async function POST(req: Request) {
     });
     extracted = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "error desconocido";
-    return NextResponse.json({ error: `No se pudo analizar el ticket: ${msg}` }, { status: 502 });
+    console.error("Error analizando ticket:", e instanceof Error ? e.message : e);
+    return NextResponse.json(
+      { error: "Ahora mismo no podemos analizar el ticket. Inténtalo de nuevo más tarde." },
+      { status: 502 },
+    );
   }
 
   // Normaliza categoría
