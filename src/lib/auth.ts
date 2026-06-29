@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { isLoginThrottled, recordLoginAttempt } from "@/lib/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -22,6 +23,9 @@ export const authOptions: NextAuthOptions = {
         const password = credentials?.password;
         if (!email || !password) return null;
 
+        // Anti-fuerza bruta: bloquea tras varios intentos fallidos seguidos.
+        if (await isLoginThrottled(email)) return null;
+
         const { data: user } = await supabaseAdmin()
           .schema("next_auth")
           .from("users")
@@ -29,11 +33,18 @@ export const authOptions: NextAuthOptions = {
           .eq("email", email)
           .maybeSingle();
 
-        if (!user?.password) return null;
+        if (!user?.password) {
+          await recordLoginAttempt(email, false);
+          return null;
+        }
 
         const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return null;
+        if (!valid) {
+          await recordLoginAttempt(email, false);
+          return null;
+        }
 
+        await recordLoginAttempt(email, true);
         return { id: user.id, name: user.name, email: user.email };
       },
     }),
