@@ -61,14 +61,14 @@ export function VacationsView({
   return (
     <div className="space-y-6">
       {active ? (
-        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-          <div className="lg:col-span-2">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="min-w-0 lg:col-span-2">
             <ActiveCard vac={active} />
           </div>
-          <div className="lg:row-span-2">
+          <div className="min-w-0 lg:row-span-2">
             <AddExpenseCard vacationId={active.id} />
           </div>
-          <div className="lg:col-span-2">
+          <div className="min-w-0 lg:col-span-2">
             <ExpensesList vac={active} />
           </div>
         </div>
@@ -263,6 +263,19 @@ const VAC_CATEGORIES: { key: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const VAC_CAT_MAP = Object.fromEntries(VAC_CATEGORIES.map((c) => [c.key, c]));
+
+const VAC_CAT_COLORS: Record<string, { bg: string; fg: string }> = {
+  alojamiento:    { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
+  vuelos:         { bg: PALETTE.lilaSoft,   fg: PALETTE.lilaInk },
+  transporte:     { bg: PALETTE.mintSoft,   fg: PALETTE.mintInk },
+  coche_alquiler: { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
+  restaurantes:   { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
+  entradas:       { bg: PALETTE.lilaSoft,   fg: PALETTE.lilaInk },
+  ocio:           { bg: PALETTE.lilaSoft,   fg: PALETTE.lilaInk },
+  compras:        { bg: PALETTE.mintSoft,   fg: PALETTE.mintInk },
+  seguro:         { bg: PALETTE.mintSoft,   fg: PALETTE.mintInk },
+  otros:          { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
+};
 
 function VacIcon({ category, className }: { category: string | null; className?: string }) {
   const Icon: LucideIcon = (category ? VAC_CAT_MAP[category]?.icon : undefined) ?? Package;
@@ -520,6 +533,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
   const [editCategory, setEditCategory] = React.useState("");
   const [editNotas, setEditNotas] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
   function openEdit(e: ExpenseRow) {
     setEditId(e.id);
@@ -547,23 +561,24 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
     else toast.error(res.error);
   }
 
-  async function remove(id: string) {
-    const res = await deleteVacationExpense(id);
+  async function confirmDelete() {
+    if (!deleteId) return;
+    const res = await deleteVacationExpense(deleteId);
+    setDeleteId(null);
     if (res.ok) { toast.success("Gasto eliminado"); router.refresh(); }
     else toast.error(res.error);
   }
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
       <h3 className="text-base font-bold text-foreground">Gastos del viaje</h3>
       {vac.expenses.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">Aún no hay gastos en este viaje. Añade el primero.</p>
       ) : (
         <ul className="mt-3 divide-y divide-border/60">
           {vac.expenses.map((e) => (
-            <li key={e.id}>
+            <li key={e.id} className="min-w-0">
               {editId === e.id ? (
-                /* Formulario de edición inline */
                 <div className="space-y-2 py-3">
                   <input
                     value={editConcepto}
@@ -620,8 +635,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                   </div>
                 </div>
               ) : (
-                /* Fila normal */
-                <div className="flex items-center gap-4 py-3.5">
+                <div className="flex min-w-0 items-center gap-3 py-3.5">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                     <VacIcon category={e.category} className="h-5 w-5" />
                   </span>
@@ -643,7 +657,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => remove(e.id)}
+                      onClick={() => setDeleteId(e.id)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-500"
                       aria-label="Eliminar gasto"
                     >
@@ -655,6 +669,30 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Modal de confirmación de borrado */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">¿Eliminar gasto?</h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">Esta acción no se puede deshacer.</p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 rounded-xl bg-destructive py-2.5 text-sm font-semibold text-destructive-foreground hover:opacity-90"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );
