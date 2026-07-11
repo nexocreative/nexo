@@ -478,7 +478,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-1/2 rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
               />
             </div>
             <div className="relative">
@@ -590,7 +590,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                       type="date"
                       value={editDate}
                       onChange={(ev) => setEditDate(ev.target.value)}
-                      className="w-1/2 rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                      className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
                     />
                   </div>
                   <div className="relative">
@@ -776,7 +776,7 @@ function StartCard() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
               />
             </div>
             <div className="w-1/2">
@@ -785,7 +785,7 @@ function StartCard() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm text-muted-foreground outline-none focus:border-primary/50"
+                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-muted-foreground outline-none focus:border-primary/50"
               />
             </div>
           </div>
