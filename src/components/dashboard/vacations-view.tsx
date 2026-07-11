@@ -484,7 +484,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+              className="w-full rounded-xl border border-border bg-card py-2.5 pl-3 pr-8 text-sm outline-none focus:border-primary/50"
             >
               <option value="">Categoría (opcional)</option>
               {VAC_CATEGORIES.map((c) => (
@@ -593,7 +593,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                   <select
                     value={editCategory}
                     onChange={(ev) => setEditCategory(ev.target.value)}
-                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                    className="w-full rounded-xl border border-border bg-card py-2 pl-3 pr-8 text-sm outline-none focus:border-primary/50"
                   >
                     <option value="">Categoría (opcional)</option>
                     {VAC_CATEGORIES.map((c) => (
