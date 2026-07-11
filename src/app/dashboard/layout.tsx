@@ -1,8 +1,24 @@
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { getServerAuthSession } from "@/lib/auth";
 import { materializeRecurring, materializeSavingsPlan } from "@/lib/data/queries";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
+
+// Corre una sola vez al día por usuario — no en cada navegación.
+function getMaterializeOnce(userId: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  return unstable_cache(
+    async () => {
+      await Promise.all([
+        materializeRecurring(userId).catch(() => {}),
+        materializeSavingsPlan(userId).catch(() => {}),
+      ]);
+    },
+    [`materialize-${userId}-${today}`],
+    { revalidate: 86400 },
+  );
+}
 
 export default async function DashboardLayout({
   children,
@@ -15,8 +31,7 @@ export default async function DashboardLayout({
   }
 
   // Contabiliza automáticamente los gastos fijos y el plan de ahorro del mes.
-  await materializeRecurring(session.user.id).catch(() => {});
-  await materializeSavingsPlan(session.user.id).catch(() => {});
+  await getMaterializeOnce(session.user.id)();
 
   return (
     <div className="nexo-canvas flex min-h-screen">
