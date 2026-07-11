@@ -264,18 +264,6 @@ const VAC_CATEGORIES: { key: string; label: string; icon: LucideIcon }[] = [
 
 const VAC_CAT_MAP = Object.fromEntries(VAC_CATEGORIES.map((c) => [c.key, c]));
 
-const VAC_CAT_COLORS: Record<string, { bg: string; fg: string }> = {
-  alojamiento:    { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
-  vuelos:         { bg: PALETTE.lilaSoft,   fg: PALETTE.lilaInk },
-  transporte:     { bg: PALETTE.mintSoft,   fg: PALETTE.mintInk },
-  coche_alquiler: { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
-  restaurantes:   { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
-  entradas:       { bg: PALETTE.lilaSoft,   fg: PALETTE.lilaInk },
-  ocio:           { bg: PALETTE.lilaSoft,   fg: PALETTE.lilaInk },
-  compras:        { bg: PALETTE.mintSoft,   fg: PALETTE.mintInk },
-  seguro:         { bg: PALETTE.mintSoft,   fg: PALETTE.mintInk },
-  otros:          { bg: PALETTE.peachSoft,  fg: PALETTE.peachInk },
-};
 
 function VacIcon({ category, className }: { category: string | null; className?: string }) {
   const Icon: LucideIcon = (category ? VAC_CAT_MAP[category]?.icon : undefined) ?? Package;
