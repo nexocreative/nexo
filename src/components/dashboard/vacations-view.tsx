@@ -623,20 +623,43 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                   </div>
                 </div>
               ) : (
-                <div className="flex min-w-0 items-center gap-3 py-3.5">
+                <div className="flex min-w-0 items-start gap-3 py-3.5 sm:items-center">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                     <VacIcon category={e.category} className="h-5 w-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {fmtDay(e.occurred_at)}
-                      {e.category && VAC_CAT_MAP[e.category] ? ` · ${VAC_CAT_MAP[e.category].label}` : ""}
-                      {e.notas ? ` · ${e.notas}` : ""}
-                    </p>
+                    {/* fila 1: título + precio (mobile) */}
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
+                      <span className="shrink-0 text-sm font-bold text-foreground sm:hidden">{formatEUR(-e.amount, { sign: true })}</span>
+                    </div>
+                    {/* fila 2: fecha/notas + botones (mobile) */}
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <p className="truncate text-xs text-muted-foreground">
+                        {fmtDay(e.occurred_at)}
+                        {e.notas ? ` · ${e.notas}` : ""}
+                      </p>
+                      <div className="flex shrink-0 gap-1 sm:hidden">
+                        <button
+                          onClick={() => openEdit(e)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label="Editar gasto"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(e.id)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-500"
+                          aria-label="Eliminar gasto"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <span className="shrink-0 text-sm font-bold text-foreground">{formatEUR(-e.amount, { sign: true })}</span>
-                  <div className="flex shrink-0 gap-1">
+                  {/* desktop: precio + botones fuera de la columna de texto */}
+                  <span className="hidden shrink-0 text-sm font-bold text-foreground sm:block">{formatEUR(-e.amount, { sign: true })}</span>
+                  <div className="hidden shrink-0 gap-1 sm:flex">
                     <button
                       onClick={() => openEdit(e)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
