@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, Pencil, Trash2, X, type LucideIcon } from "lucide-react";
+import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, Pencil, Trash2, X, ChevronDown, type LucideIcon } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import {
   Dialog,
@@ -481,16 +481,19 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
                 className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
               />
             </div>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card py-2.5 pl-3 pr-8 text-sm outline-none focus:border-primary/50"
-            >
-              <option value="">Categoría (opcional)</option>
-              {VAC_CATEGORIES.map((c) => (
-                <option key={c.key} value={c.key}>{c.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+              >
+                <option value="">Categoría (opcional)</option>
+                {VAC_CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
@@ -590,16 +593,19 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                       className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
                     />
                   </div>
-                  <select
-                    value={editCategory}
-                    onChange={(ev) => setEditCategory(ev.target.value)}
-                    className="w-full rounded-xl border border-border bg-card py-2 pl-3 pr-8 text-sm outline-none focus:border-primary/50"
-                  >
-                    <option value="">Categoría (opcional)</option>
-                    {VAC_CATEGORIES.map((c) => (
-                      <option key={c.key} value={c.key}>{c.label}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={editCategory}
+                      onChange={(ev) => setEditCategory(ev.target.value)}
+                      className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                    >
+                      <option value="">Categoría (opcional)</option>
+                      {VAC_CATEGORIES.map((c) => (
+                        <option key={c.key} value={c.key}>{c.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  </div>
                   <input
                     value={editNotas}
                     onChange={(ev) => setEditNotas(ev.target.value)}
