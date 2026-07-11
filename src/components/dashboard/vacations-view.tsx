@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense } from "@/app/dashboard/actions";
+import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense, renameVacation } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
@@ -173,7 +173,20 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [confirming, setConfirming] = React.useState(false);
+  const [editingName, setEditingName] = React.useState(false);
+  const [nameValue, setNameValue] = React.useState(vac.name);
+  const [savingName, setSavingName] = React.useState(false);
   const remaining = vac.budget - vac.spent;
+
+  async function saveName() {
+    if (!nameValue.trim() || nameValue.trim() === vac.name) { setEditingName(false); return; }
+    setSavingName(true);
+    const res = await renameVacation(vac.id, nameValue);
+    setSavingName(false);
+    if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
+    else toast.error(res.error);
+    setEditingName(false);
+  }
 
   async function close() {
     setPending(true);
@@ -200,7 +213,28 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
           <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ backgroundColor: PALETTE.peach, color: PALETTE.peachInk }}>
             <Palmtree className="h-3.5 w-3.5" /> Modo vacaciones activo
           </span>
-          <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-foreground">{vac.name}</h2>
+          {editingName ? (
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                autoFocus
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
+                className="min-w-0 flex-1 rounded-xl border border-primary/50 bg-white/70 px-3 py-1.5 text-xl font-extrabold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button onClick={saveName} disabled={savingName} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60">
+                <Check className="h-4 w-4" />
+              </button>
+              <button onClick={() => setEditingName(false)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => { setNameValue(vac.name); setEditingName(true); }} className="group mt-3 flex items-center gap-2 text-left">
+              <h2 className="text-2xl font-extrabold tracking-tight text-foreground">{vac.name}</h2>
+              <Pencil className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </button>
+          )}
           <p className="mt-0.5 text-xs text-muted-foreground">
             {fmtDay(vac.start_date)}{vac.end_date && ` – ${fmtDay(vac.end_date)}`}
           </p>
@@ -504,7 +538,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
             <button
               disabled={pending || !concepto || !amount}
               onClick={submit}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 disabled:opacity-60"
             >
               <Plus className="h-4 w-4" /> Añadir gasto
             </button>

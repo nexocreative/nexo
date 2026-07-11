@@ -720,3 +720,17 @@ export async function updateVacationExpense(id: string, input: unknown): Promise
   revalidatePath("/dashboard/vacaciones");
   return { ok: true };
 }
+
+export async function renameVacation(id: string, name: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 80) return { ok: false, error: "Nombre inválido" };
+  const { error } = await supabaseAdmin()
+    .from("vacation_periods")
+    .update({ name: trimmed })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/vacaciones");
+  return { ok: true };
+}
