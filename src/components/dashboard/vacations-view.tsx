@@ -697,7 +697,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 rounded-xl bg-destructive py-2.5 text-sm font-semibold text-destructive-foreground hover:opacity-90"
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600"
               >
                 Eliminar
               </button>
