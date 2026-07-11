@@ -538,7 +538,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
             <button
               disabled={pending || !concepto || !amount}
               onClick={submit}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-75"
             >
               <Plus className="h-4 w-4" /> Añadir gasto
             </button>
