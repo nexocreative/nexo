@@ -734,3 +734,212 @@ export async function renameVacation(id: string, name: string): Promise<ActionRe
   revalidatePath("/dashboard/vacaciones");
   return { ok: true };
 }
+
+// ─── Grupos (gastos compartidos) ─────────────────────────────────────────────
+
+export async function createGrupo(name: string): Promise<ActionResult & { id?: string }> {
+  const userId = await requireUserId();
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 80) return { ok: false, error: "Nombre inválido" };
+
+  const { data: grupo, error: e1 } = await supabaseAdmin()
+    .from("grupos")
+    .insert({ name: trimmed, created_by: userId })
+    .select("id")
+    .single();
+  if (e1 || !grupo) return { ok: false, error: e1?.message ?? "Error al crear el grupo" };
+
+  const { error: e2 } = await supabaseAdmin().from("grupo_miembros").insert({
+    grupo_id: grupo.id,
+    user_id: userId,
+    invited_by: userId,
+    status: "accepted",
+  });
+  if (e2) return { ok: false, error: e2.message };
+
+  revalidatePath("/dashboard/juntos");
+  return { ok: true, id: grupo.id };
+}
+
+export async function deleteGrupo(grupoId: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("grupos")
+    .delete()
+    .eq("id", grupoId)
+    .eq("created_by", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
+export async function leaveGrupo(grupoId: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("grupo_miembros")
+    .delete()
+    .eq("grupo_id", grupoId)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
+export async function inviteGrupoMember(grupoId: string, email: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Verificar que el invitante es miembro aceptado
+  const { data: self } = await supabaseAdmin()
+    .from("grupo_miembros")
+    .select("id")
+    .eq("grupo_id", grupoId)
+    .eq("user_id", userId)
+    .eq("status", "accepted")
+    .maybeSingle();
+  if (!self) return { ok: false, error: "No eres miembro de este grupo" };
+
+  // Buscar al usuario por email en next_auth.users
+  const { data: targetUser } = await supabaseAdmin()
+    .schema("next_auth")
+    .from("users")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+  if (!targetUser) return { ok: false, error: "No existe ninguna cuenta de Nexo con ese email" };
+  if (targetUser.id === userId) return { ok: false, error: "No puedes invitarte a ti mismo" };
+
+  const { error } = await supabaseAdmin().from("grupo_miembros").insert({
+    grupo_id: grupoId,
+    user_id: targetUser.id,
+    invited_by: userId,
+    status: "pending",
+  });
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: "Ese usuario ya es miembro del grupo" };
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
+export async function respondToGrupoInvite(grupoId: string, accept: boolean): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const status = accept ? "accepted" : "rejected";
+  const { error } = await supabaseAdmin()
+    .from("grupo_miembros")
+    .update({ status })
+    .eq("grupo_id", grupoId)
+    .eq("user_id", userId)
+    .eq("status", "pending");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
+const grupoGastoSchema = z.object({
+  grupoId: z.string().uuid(),
+  description: z.string().trim().min(1, "La descripción es obligatoria").max(120),
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  occurredAt: z.string().optional(),
+  paidBy: z.string().uuid(),
+  participantIds: z.array(z.string().uuid()).min(1, "Debe haber al menos un participante"),
+});
+
+export async function addGrupoGasto(input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = grupoGastoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  const d = parsed.data;
+
+  // Verificar que el usuario es miembro aceptado
+  const { data: self } = await supabaseAdmin()
+    .from("grupo_miembros")
+    .select("id")
+    .eq("grupo_id", d.grupoId)
+    .eq("user_id", userId)
+    .eq("status", "accepted")
+    .maybeSingle();
+  if (!self) return { ok: false, error: "No eres miembro de este grupo" };
+
+  const { data: gasto, error: e1 } = await supabaseAdmin()
+    .from("grupo_gastos")
+    .insert({
+      grupo_id: d.grupoId,
+      paid_by: d.paidBy,
+      description: d.description,
+      amount: d.amount,
+      occurred_at: d.occurredAt || new Date().toISOString().slice(0, 10),
+    })
+    .select("id")
+    .single();
+  if (e1 || !gasto) return { ok: false, error: e1?.message ?? "Error al crear el gasto" };
+
+  const partePorPersona = Math.round((d.amount / d.participantIds.length) * 100) / 100;
+  const partes = d.participantIds.map((pid, i) => ({
+    gasto_id: gasto.id,
+    user_id: pid,
+    // El último participante absorbe el redondeo
+    amount: i === d.participantIds.length - 1
+      ? Math.round((d.amount - partePorPersona * (d.participantIds.length - 1)) * 100) / 100
+      : partePorPersona,
+  }));
+
+  const { error: e2 } = await supabaseAdmin().from("grupo_gasto_partes").insert(partes);
+  if (e2) return { ok: false, error: e2.message };
+
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
+export async function deleteGrupoGasto(gastoId: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("grupo_gastos")
+    .delete()
+    .eq("id", gastoId)
+    .eq("paid_by", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
+export async function settleWithMember(grupoId: string, otherUserId: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const supabase = supabaseAdmin();
+
+  // Gastos pagados por el otro donde yo participo (yo le debo a él)
+  const { data: gastosByOther } = await supabase
+    .from("grupo_gastos")
+    .select("id")
+    .eq("grupo_id", grupoId)
+    .eq("paid_by", otherUserId);
+
+  if (gastosByOther && gastosByOther.length > 0) {
+    await supabase
+      .from("grupo_gasto_partes")
+      .update({ settled: true, settled_at: new Date().toISOString() })
+      .in("gasto_id", gastosByOther.map((g) => g.id))
+      .eq("user_id", userId)
+      .eq("settled", false);
+  }
+
+  // Gastos pagados por mí donde el otro participa (él me debe a mí)
+  const { data: gastosByMe } = await supabase
+    .from("grupo_gastos")
+    .select("id")
+    .eq("grupo_id", grupoId)
+    .eq("paid_by", userId);
+
+  if (gastosByMe && gastosByMe.length > 0) {
+    await supabase
+      .from("grupo_gasto_partes")
+      .update({ settled: true, settled_at: new Date().toISOString() })
+      .in("gasto_id", gastosByMe.map((g) => g.id))
+      .eq("user_id", otherUserId)
+      .eq("settled", false);
+  }
+
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}

@@ -21,7 +21,7 @@ const links = [
   { href: "/dashboard/limites", label: "Límites", icon: Gauge },
   { href: "/dashboard/ahorro", label: "Ahorro", icon: PiggyBank },
   { href: "/dashboard/graficas", label: "Gráficas", icon: BarChart3 },
-  { href: "/dashboard/juntos", label: "Juntos", icon: Users },
+  { href: "/dashboard/juntos", label: "En conjunto", icon: Users },
   { href: "/dashboard/vacaciones", label: "Vacaciones", icon: Palmtree },
 ];
 

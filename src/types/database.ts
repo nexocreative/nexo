@@ -124,3 +124,77 @@ export interface PartnerLink {
   partner_consent: boolean;
   created_at: string;
 }
+
+// ─── Grupos (gastos compartidos) ─────────────────────────────────────────────
+
+export type GrupoMiembroStatus = "pending" | "accepted" | "rejected";
+
+export interface Grupo {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface GrupoMiembro {
+  id: string;
+  grupo_id: string;
+  user_id: string;
+  invited_by: string;
+  status: GrupoMiembroStatus;
+  created_at: string;
+  // campos enriquecidos en queries
+  display_name: string | null;
+  email: string | null;
+}
+
+export interface GrupoGasto {
+  id: string;
+  grupo_id: string;
+  paid_by: string;
+  description: string;
+  amount: number;
+  occurred_at: string;
+  created_at: string;
+}
+
+export interface GrupoGastoParte {
+  id: string;
+  gasto_id: string;
+  user_id: string;
+  amount: number;
+  settled: boolean;
+  settled_at: string | null;
+}
+
+// Balance neto de un miembro con respecto al usuario actual en un grupo
+export interface GrupoBalance {
+  user_id: string;
+  display_name: string | null;
+  email: string | null;
+  net: number; // positivo = te deben, negativo = debes
+}
+
+// Grupo con todo el detalle necesario para la UI
+export interface GrupoConDetalle {
+  id: string;
+  name: string;
+  created_by: string;
+  members: GrupoMiembro[];
+  gastos: (GrupoGasto & { partes: GrupoGastoParte[]; paid_by_name: string | null })[];
+  balances: GrupoBalance[];
+}
+
+// Invitación pendiente de responder
+export interface GrupoInvite {
+  grupo_id: string;
+  grupo_name: string;
+  invited_by_name: string | null;
+  invited_by_email: string | null;
+  created_at: string;
+}
+
+export interface GruposData {
+  grupos: GrupoConDetalle[];
+  pendingInvites: GrupoInvite[];
+}

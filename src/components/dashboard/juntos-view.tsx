@@ -5,412 +5,715 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Users,
-  Lock,
-  ShieldCheck,
-  TrendingUp,
-  AlertTriangle,
   Plus,
-  Target,
-  Mail,
-  Clock,
+  ChevronLeft,
   UserPlus,
+  Trash2,
   Check,
   X,
-  Unlink,
+  LogOut,
+  CreditCard,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { ProgressRing } from "@/components/ui/progress-ring";
-import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
 import {
-  togglePartnerConsent,
-  contributeSavings,
-  invitePartner,
-  respondToInvite,
-  unlinkPartner,
+  createGrupo,
+  deleteGrupo,
+  leaveGrupo,
+  inviteGrupoMember,
+  respondToGrupoInvite,
+  addGrupoGasto,
+  deleteGrupoGasto,
+  settleWithMember,
 } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
-import { PALETTE } from "@/lib/constants";
+import type { GruposData, GrupoConDetalle, GrupoBalance } from "@/types/database";
 
-type LinkStatus = "none" | "pending_sent" | "pending_received" | "accepted";
-
-interface Goal {
-  name: string;
-  target_amount: number;
-  current_amount: number;
-  target_date: string;
-  pct: number;
-  daysLeft: number;
-  monthlyNeeded: number;
-  onTrack: boolean;
+interface Props {
+  data: GruposData;
+  currentUserId: string;
 }
 
-export function JuntosView({
-  status,
-  sharingActive,
-  partnerName,
-  myConsent,
-  partnerConsent,
-  goal,
-  consolidated,
-}: {
-  status: LinkStatus;
-  sharingActive: boolean;
-  partnerName: string | null;
-  myConsent: boolean;
-  partnerConsent: boolean;
-  goal: Goal | null;
-  consolidated: { month: string; income: number; expense: number }[] | null;
-}) {
+function fmtDay(iso: string) {
+  return new Date(iso + "T12:00:00").toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function Avatar({ name, email }: { name: string | null; email: string | null }) {
+  const label = name?.[0] ?? email?.[0] ?? "?";
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        {goal ? (
-          <GoalCard goal={goal} />
-        ) : (
-          <section className="rounded-3xl border border-border/60 bg-card p-7 text-center shadow-sm">
-            <Target className="mx-auto h-8 w-8 text-primary" />
-            <h3 className="mt-3 text-lg font-bold">Sin objetivo conjunto</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Crea una meta de ahorro compartida con {partnerName ?? "tu pareja"}.
-            </p>
-          </section>
-        )}
-
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div>
-            <h3 className="text-base font-bold text-foreground">Gráfica consolidada del hogar</h3>
-            <p className="text-xs text-muted-foreground">Ingresos vs gastos de ambos · últimos 6 meses</p>
-          </div>
-          {sharingActive && consolidated ? (
-            <div className="mt-4">
-              <IncomeExpenseBars data={consolidated} />
-            </div>
-          ) : (
-            <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-muted/40 py-14 text-center">
-              <Lock className="h-7 w-7 text-muted-foreground" />
-              <p className="max-w-xs text-sm text-muted-foreground">
-                Los datos cruzados solo se muestran cuando <strong>ambos</strong> activáis la vista conjunta.
-              </p>
-            </div>
-          )}
-        </section>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <PartnerCard
-          status={status}
-          partnerName={partnerName}
-          myConsent={myConsent}
-          partnerConsent={partnerConsent}
-          sharingActive={sharingActive}
-        />
-        {goal && sharingActive && <ContributeCard />}
-      </div>
-    </div>
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+      {label.toUpperCase()}
+    </span>
   );
 }
 
-function PartnerCard({
-  status,
-  partnerName,
-  myConsent,
-  partnerConsent,
-  sharingActive,
+// ─── Vista detalle de un grupo ────────────────────────────────────────────────
+
+function GrupoDetail({
+  grupo,
+  currentUserId,
+  onBack,
 }: {
-  status: LinkStatus;
-  partnerName: string | null;
-  myConsent: boolean;
-  partnerConsent: boolean;
-  sharingActive: boolean;
+  grupo: GrupoConDetalle;
+  currentUserId: string;
+  onBack: () => void;
 }) {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-primary">
-          <Users className="h-[18px] w-[18px]" />
-        </span>
-        <h3 className="text-base font-bold text-foreground">Vista conjunta</h3>
-      </div>
-
-      {status === "none" && <InviteForm />}
-      {status === "pending_sent" && <PendingSent partnerName={partnerName} />}
-      {status === "pending_received" && <PendingReceived partnerName={partnerName} />}
-      {status === "accepted" && (
-        <AcceptedState
-          partnerName={partnerName}
-          myConsent={myConsent}
-          partnerConsent={partnerConsent}
-          sharingActive={sharingActive}
-        />
-      )}
-
-      <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        🔒 <strong>Privacidad por diseño:</strong> tus datos individuales nunca se comparten automáticamente. Solo aquí, con activación explícita de ambos, se muestran datos cruzados.
-      </p>
-    </section>
-  );
-}
-
-function InviteForm() {
   const router = useRouter();
-  const [email, setEmail] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+  const [showInvite, setShowInvite] = React.useState(false);
+  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviting, setInviting] = React.useState(false);
+  const [showAddGasto, setShowAddGasto] = React.useState(false);
+  const [deleteGastoId, setDeleteGastoId] = React.useState<string | null>(null);
+  const [settling, setSettling] = React.useState<string | null>(null);
+  const [leaving, setLeaving] = React.useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
 
-  async function submit() {
-    setPending(true);
-    const res = await invitePartner(email);
-    setPending(false);
+  // Form state para añadir gasto
+  const acceptedMembers = grupo.members.filter((m) => m.status === "accepted");
+  const [gastoDesc, setGastoDesc] = React.useState("");
+  const [gastoAmount, setGastoAmount] = React.useState("");
+  const [gastoDate, setGastoDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [gastoPaidBy, setGastoPaidBy] = React.useState(currentUserId);
+  const [gastoParticipants, setGastoParticipants] = React.useState<string[]>(
+    acceptedMembers.map((m) => m.user_id),
+  );
+  const [addingGasto, setAddingGasto] = React.useState(false);
+
+  const toggleParticipant = (uid: string) => {
+    setGastoParticipants((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid],
+    );
+  };
+
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    const res = await inviteGrupoMember(grupo.id, inviteEmail.trim());
+    setInviting(false);
     if (res.ok) {
       toast.success("Invitación enviada");
-      setEmail("");
+      setInviteEmail("");
+      setShowInvite(false);
       router.refresh();
-    } else toast.error(res.error);
+    } else {
+      toast.error(res.error);
+    }
   }
 
+  async function handleAddGasto() {
+    if (!gastoDesc.trim() || !gastoAmount || gastoParticipants.length === 0) return;
+    setAddingGasto(true);
+    const res = await addGrupoGasto({
+      grupoId: grupo.id,
+      description: gastoDesc.trim(),
+      amount: Number(gastoAmount),
+      occurredAt: gastoDate,
+      paidBy: gastoPaidBy,
+      participantIds: gastoParticipants,
+    });
+    setAddingGasto(false);
+    if (res.ok) {
+      toast.success("Gasto añadido");
+      setGastoDesc("");
+      setGastoAmount("");
+      setGastoDate(new Date().toISOString().slice(0, 10));
+      setGastoPaidBy(currentUserId);
+      setGastoParticipants(acceptedMembers.map((m) => m.user_id));
+      setShowAddGasto(false);
+      router.refresh();
+    } else {
+      toast.error(res.error);
+    }
+  }
+
+  async function handleDeleteGasto() {
+    if (!deleteGastoId) return;
+    const res = await deleteGrupoGasto(deleteGastoId);
+    setDeleteGastoId(null);
+    if (res.ok) {
+      toast.success("Gasto eliminado");
+      router.refresh();
+    } else {
+      toast.error(res.error);
+    }
+  }
+
+  async function handleSettle(otherUserId: string) {
+    setSettling(otherUserId);
+    const res = await settleWithMember(grupo.id, otherUserId);
+    setSettling(null);
+    if (res.ok) {
+      toast.success("Saldado");
+      router.refresh();
+    } else {
+      toast.error(res.error);
+    }
+  }
+
+  async function handleLeave() {
+    setLeaving(true);
+    const isCreator = grupo.created_by === currentUserId;
+    const res = isCreator ? await deleteGrupo(grupo.id) : await leaveGrupo(grupo.id);
+    setLeaving(false);
+    if (res.ok) {
+      toast.success(isCreator ? "Grupo eliminado" : "Has abandonado el grupo");
+      onBack();
+      router.refresh();
+    } else {
+      toast.error(res.error);
+    }
+  }
+
+  const memberName = (uid: string) => {
+    const m = grupo.members.find((x) => x.user_id === uid);
+    return m?.display_name ?? m?.email ?? uid;
+  };
+
+  const nonZeroBalances = grupo.balances.filter((b) => Math.abs(b.net) >= 0.01);
+
   return (
-    <div className="mt-4">
-      <p className="text-sm text-muted-foreground">
-        Invita a tu pareja por su email de Nexo para compartir objetivos y gráficas del hogar.
-      </p>
-      <div className="mt-3 space-y-2">
-        <div className="flex items-center rounded-xl border border-border bg-card px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@ejemplo.com"
-            className="w-full bg-transparent px-2 py-2.5 text-sm outline-none"
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-          />
-        </div>
+    <div className="space-y-6">
+      {/* Cabecera */}
+      <div className="flex items-center gap-3">
         <button
-          disabled={pending || !email}
-          onClick={submit}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          onClick={onBack}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
         >
-          <UserPlus className="h-4 w-4" /> Enviar invitación
+          <ChevronLeft className="h-4 w-4" />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function PendingSent({ partnerName }: { partnerName: string | null }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState(false);
-  async function cancel() {
-    setPending(true);
-    const res = await unlinkPartner();
-    setPending(false);
-    if (res.ok) {
-      toast.success("Invitación cancelada");
-      router.refresh();
-    } else toast.error(res.error);
-  }
-  return (
-    <div className="mt-4">
-      <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground">
-        <Clock className="h-4 w-4" /> Invitación enviada
-      </div>
-      <p className="mt-3 text-sm text-muted-foreground">
-        Esperando a que <span className="font-semibold text-foreground">{partnerName ?? "tu pareja"}</span> acepte la invitación.
-      </p>
-      <button
-        disabled={pending}
-        onClick={cancel}
-        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground disabled:opacity-60"
-      >
-        <X className="h-4 w-4" /> Cancelar invitación
-      </button>
-    </div>
-  );
-}
-
-function PendingReceived({ partnerName }: { partnerName: string | null }) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState(false);
-  async function respond(accept: boolean) {
-    setPending(true);
-    const res = await respondToInvite(accept);
-    setPending(false);
-    if (res.ok) {
-      toast.success(accept ? "Vista conjunta activada" : "Invitación rechazada");
-      router.refresh();
-    } else toast.error(res.error);
-  }
-  return (
-    <div className="mt-4">
-      <p className="text-sm text-foreground">
-        <span className="font-semibold">{partnerName ?? "Alguien"}</span> quiere compartir la vista conjunta contigo.
-      </p>
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={pending}
-          onClick={() => respond(true)}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-        >
-          <Check className="h-4 w-4" /> Aceptar
-        </button>
-        <button
-          disabled={pending}
-          onClick={() => respond(false)}
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
-        >
-          <X className="h-4 w-4" /> Rechazar
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AcceptedState({
-  partnerName,
-  myConsent,
-  partnerConsent,
-  sharingActive,
-}: {
-  partnerName: string | null;
-  myConsent: boolean;
-  partnerConsent: boolean;
-  sharingActive: boolean;
-}) {
-  const router = useRouter();
-  const [pending, setPending] = React.useState(false);
-
-  async function toggle(next: boolean) {
-    setPending(true);
-    const res = await togglePartnerConsent(next);
-    setPending(false);
-    if (res.ok) {
-      toast.success(next ? "Has activado la vista conjunta" : "Has desactivado la vista conjunta");
-      router.refresh();
-    } else toast.error(res.error);
-  }
-
-  async function unlink() {
-    setPending(true);
-    const res = await unlinkPartner();
-    setPending(false);
-    if (res.ok) {
-      toast.success("Vínculo deshecho");
-      router.refresh();
-    } else toast.error(res.error);
-  }
-
-  return (
-    <>
-      <div className="mt-4 flex items-center justify-between rounded-2xl bg-muted/50 px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Tú</p>
-          <p className="text-xs text-muted-foreground">Compartir mis datos</p>
-        </div>
-        <Switch checked={myConsent} disabled={pending} onCheckedChange={toggle} />
+        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{grupo.name}</h1>
       </div>
 
-      <div className="mt-3 flex items-center justify-between rounded-2xl bg-muted/50 px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{partnerName ?? "Pareja"}</p>
-          <p className="text-xs text-muted-foreground">{partnerConsent ? "Ha dado consentimiento" : "Pendiente de activar"}</p>
-        </div>
-        <span
-          className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground"
-          style={partnerConsent ? { backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk } : { backgroundColor: "hsl(var(--muted))" }}
-        >
-          {partnerConsent ? "✓" : "…"}
-        </span>
-      </div>
+      {/* Balances */}
+      {nonZeroBalances.length > 0 && (
+        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Balances
+          </h2>
+          <ul className="space-y-3">
+            {grupo.balances.map((b) => (
+              <li key={b.user_id} className="flex items-center gap-3">
+                <Avatar name={b.display_name} email={b.email} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {b.display_name ?? b.email}
+                  </p>
+                  <p
+                    className={`text-xs font-medium ${
+                      Math.abs(b.net) < 0.01
+                        ? "text-muted-foreground"
+                        : b.net > 0
+                          ? "text-emerald-600"
+                          : "text-red-500"
+                    }`}
+                  >
+                    {Math.abs(b.net) < 0.01
+                      ? "En paz"
+                      : b.net > 0
+                        ? `Te debe ${formatEUR(b.net)}`
+                        : `Le debes ${formatEUR(Math.abs(b.net))}`}
+                  </p>
+                </div>
+                {Math.abs(b.net) >= 0.01 && (
+                  <button
+                    onClick={() => handleSettle(b.user_id)}
+                    disabled={settling === b.user_id}
+                    className="shrink-0 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {settling === b.user_id ? "..." : "Saldar"}
+                  </button>
+                )}
+              </li>
+            ))}
+            {grupo.balances.every((b) => Math.abs(b.net) < 0.01) && (
+              <p className="text-sm text-muted-foreground">Todo saldado</p>
+            )}
+          </ul>
+        </section>
+      )}
 
-      <div
-        className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold text-muted-foreground"
-        style={sharingActive ? { backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk } : { backgroundColor: "hsl(var(--muted))" }}
-      >
-        {sharingActive ? <ShieldCheck className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-        {sharingActive ? "Vista conjunta activa" : "Vista conjunta inactiva"}
-      </div>
-
-      <button
-        disabled={pending}
-        onClick={unlink}
-        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-60"
-      >
-        <Unlink className="h-3.5 w-3.5" /> Deshacer vínculo con {partnerName ?? "tu pareja"}
-      </button>
-    </>
-  );
-}
-
-function GoalCard({ goal }: { goal: Goal }) {
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm">
-      <div className="flex flex-wrap items-center gap-7">
-        <ProgressRing value={goal.pct} size={150} stroke={14} color={PALETTE.lila}>
-          <span className="text-2xl font-extrabold text-foreground">{goal.pct}%</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Ahorrado</span>
-        </ProgressRing>
-
-        <div className="min-w-[200px] flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Objetivo conjunto</p>
-          <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-foreground">{goal.name}</h2>
-          <p className="mt-2 text-lg font-bold text-foreground">
-            {formatEUR(goal.current_amount)}{" "}
-            <span className="text-sm font-semibold text-muted-foreground">de {formatEUR(goal.target_amount)}</span>
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Fecha límite: {new Date(goal.target_date).toLocaleDateString("es-ES", { month: "long", year: "numeric" })} · faltan {goal.daysLeft} días
-          </p>
-
-          <div
-            className="mt-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold"
-            style={goal.onTrack ? { backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk } : { backgroundColor: PALETTE.peachSoft, color: PALETTE.peachInk }}
+      {/* Gastos */}
+      <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Gastos
+          </h2>
+          <button
+            onClick={() => setShowAddGasto((v) => !v)}
+            className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
           >
-            {goal.onTrack ? <TrendingUp className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-            {goal.onTrack
-              ? `Vais a buen ritmo · ${formatEUR(goal.monthlyNeeded)}/mes para llegar`
-              : `Vais por debajo del ritmo · necesitáis ${formatEUR(goal.monthlyNeeded)}/mes`}
+            <Plus className="h-3.5 w-3.5" />
+            Añadir gasto
+          </button>
+        </div>
+
+        {/* Formulario añadir gasto */}
+        {showAddGasto && (
+          <div className="mx-6 mb-5 space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
+            <input
+              autoFocus
+              placeholder="Descripción"
+              value={gastoDesc}
+              onChange={(e) => setGastoDesc(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="Importe (€)"
+                min="0.01"
+                step="0.01"
+                value={gastoAmount}
+                onChange={(e) => setGastoAmount(e.target.value)}
+                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+              />
+              <input
+                type="date"
+                value={gastoDate}
+                onChange={(e) => setGastoDate(e.target.value)}
+                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+              />
+            </div>
+            <div className="relative">
+              <select
+                value={gastoPaidBy}
+                onChange={(e) => setGastoPaidBy(e.target.value)}
+                className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+              >
+                {acceptedMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.user_id === currentUserId
+                      ? "Yo"
+                      : (m.display_name ?? m.email ?? m.user_id)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Participan:</p>
+              <div className="flex flex-wrap gap-2">
+                {acceptedMembers.map((m) => {
+                  const checked = gastoParticipants.includes(m.user_id);
+                  return (
+                    <button
+                      key={m.user_id}
+                      type="button"
+                      onClick={() => toggleParticipant(m.user_id)}
+                      className={`rounded-xl border px-3 py-1 text-xs font-medium transition-colors ${
+                        checked
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card text-muted-foreground"
+                      }`}
+                    >
+                      {m.user_id === currentUserId ? "Yo" : (m.display_name ?? m.email)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setShowAddGasto(false)}
+                className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddGasto}
+                disabled={addingGasto || !gastoDesc.trim() || !gastoAmount || gastoParticipants.length === 0}
+                className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {addingGasto ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {grupo.gastos.length === 0 ? (
+          <p className="px-6 pb-6 text-sm text-muted-foreground">No hay gastos aún.</p>
+        ) : (
+          <ul className="divide-y divide-border/60 px-6 pb-2">
+            {grupo.gastos.map((gasto) => {
+              const myPart = gasto.partes.find((p) => p.user_id === currentUserId);
+              const participants = gasto.partes.map((p) => {
+                const m = grupo.members.find((x) => x.user_id === p.user_id);
+                return m?.display_name ?? m?.email ?? p.user_id;
+              });
+              return (
+                <li key={gasto.id} className="flex min-w-0 items-start gap-3 py-3.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {gasto.description}
+                      </p>
+                      <span className="shrink-0 text-sm font-bold text-foreground">
+                        {formatEUR(gasto.amount)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {fmtDay(gasto.occurred_at)} · Pagó {gasto.paid_by === currentUserId ? "yo" : (gasto.paid_by_name ?? "?")}
+                      {myPart && (
+                        <span className={myPart.settled ? " · Saldado" : ` · Tu parte: ${formatEUR(myPart.amount)}`} />
+                      )}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
+                      {participants.join(", ")}
+                    </p>
+                  </div>
+                  {gasto.paid_by === currentUserId && (
+                    <button
+                      onClick={() => setDeleteGastoId(gasto.id)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* Miembros */}
+      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Miembros
+          </h2>
+          <button
+            onClick={() => setShowInvite((v) => !v)}
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Invitar
+          </button>
+        </div>
+
+        {showInvite && (
+          <div className="mb-4 flex gap-2">
+            <input
+              autoFocus
+              type="email"
+              placeholder="Email de Nexo"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleInvite(); }}
+              className="min-w-0 flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+            />
+            <button
+              onClick={handleInvite}
+              disabled={inviting || !inviteEmail.trim()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white disabled:opacity-60"
+            >
+              <Check className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => { setShowInvite(false); setInviteEmail(""); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border hover:bg-muted"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        <ul className="space-y-3">
+          {grupo.members.map((m) => (
+            <li key={m.id} className="flex items-center gap-3">
+              <Avatar name={m.display_name} email={m.email} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {m.user_id === currentUserId
+                    ? "Yo"
+                    : (m.display_name ?? m.email ?? "Usuario")}
+                </p>
+                {m.status !== "accepted" && (
+                  <p className="text-xs text-muted-foreground">
+                    {m.status === "pending" ? "Pendiente" : "Rechazado"}
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Abandonar / eliminar */}
+      <div className="pb-2">
+        {showLeaveConfirm ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm font-semibold text-red-800">
+              {grupo.created_by === currentUserId
+                ? "¿Eliminar el grupo? Esta acción no se puede deshacer."
+                : "¿Abandonar el grupo?"}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleLeave}
+                disabled={leaving}
+                className="flex-1 rounded-xl bg-red-500 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+              >
+                {leaving ? "..." : grupo.created_by === currentUserId ? "Eliminar" : "Abandonar"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-red-500"
+          >
+            <LogOut className="h-4 w-4" />
+            {grupo.created_by === currentUserId ? "Eliminar grupo" : "Abandonar grupo"}
+          </button>
+        )}
+      </div>
+
+      {/* Modal confirmar borrar gasto */}
+      {deleteGastoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">¿Eliminar gasto?</h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">Esta acción no se puede deshacer.</p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setDeleteGastoId(null)}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteGasto}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600"
+              >
+                Eliminar
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      )}
+    </div>
   );
 }
 
-function ContributeCard() {
-  const router = useRouter();
-  const [amount, setAmount] = React.useState("");
-  const [pending, setPending] = React.useState(false);
+// ─── Vista lista de grupos ────────────────────────────────────────────────────
 
-  async function submit() {
-    setPending(true);
-    const res = await contributeSavings(Number(amount));
-    setPending(false);
+export function JuntosView({ data, currentUserId }: Props) {
+  const router = useRouter();
+  const [selectedGrupoId, setSelectedGrupoId] = React.useState<string | null>(null);
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
+  const [respondingId, setRespondingId] = React.useState<string | null>(null);
+
+  const selectedGrupo = data.grupos.find((g) => g.id === selectedGrupoId) ?? null;
+
+  async function handleCreate() {
+    if (!newName.trim()) return;
+    setCreating(true);
+    const res = await createGrupo(newName.trim());
+    setCreating(false);
     if (res.ok) {
-      toast.success("Aportación añadida al objetivo");
-      setAmount("");
+      toast.success("Grupo creado");
+      setNewName("");
+      setShowCreate(false);
       router.refresh();
-    } else toast.error(res.error);
+      if ("id" in res && res.id) setSelectedGrupoId(res.id);
+    } else {
+      toast.error(res.error);
+    }
   }
 
+  async function handleRespond(grupoId: string, accept: boolean) {
+    setRespondingId(grupoId);
+    const res = await respondToGrupoInvite(grupoId, accept);
+    setRespondingId(null);
+    if (res.ok) {
+      toast.success(accept ? "Te has unido al grupo" : "Invitación rechazada");
+      router.refresh();
+      if (accept) setSelectedGrupoId(grupoId);
+    } else {
+      toast.error(res.error);
+    }
+  }
+
+  if (selectedGrupo) {
+    return (
+      <GrupoDetail
+        grupo={selectedGrupo}
+        currentUserId={currentUserId}
+        onBack={() => setSelectedGrupoId(null)}
+      />
+    );
+  }
+
+  const myNetTotal = data.grupos.reduce((acc, g) => {
+    return acc + g.balances.reduce((a, b) => a + b.net, 0);
+  }, 0);
+
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-      <h3 className="text-base font-bold text-foreground">Aportar al ahorro</h3>
-      <p className="text-xs text-muted-foreground">Cada uno aporta según su disponibilidad.</p>
-      <div className="mt-4 flex gap-2">
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="Importe €"
-          className="flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-        />
+    <div className="space-y-6">
+      {/* Cabecera */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">En conjunto</h1>
+          {data.grupos.length > 0 && (
+            <p className={`mt-0.5 text-sm font-medium ${Math.abs(myNetTotal) < 0.01 ? "text-muted-foreground" : myNetTotal > 0 ? "text-emerald-600" : "text-red-500"}`}>
+              {Math.abs(myNetTotal) < 0.01
+                ? "Todo saldado"
+                : myNetTotal > 0
+                  ? `Te deben ${formatEUR(myNetTotal)} en total`
+                  : `Debes ${formatEUR(Math.abs(myNetTotal))} en total`}
+            </p>
+          )}
+        </div>
         <button
-          disabled={pending || !amount}
-          onClick={submit}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
         >
-          <Plus className="h-4 w-4" /> Aportar
+          <Plus className="h-4 w-4" />
+          Nuevo grupo
         </button>
       </div>
-    </section>
+
+      {/* Modal crear grupo */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">Nuevo grupo</h4>
+            <input
+              autoFocus
+              placeholder="Nombre del grupo"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+              className="mt-4 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+            />
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => { setShowCreate(false); setNewName(""); }}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={creating || !newName.trim()}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                {creating ? "Creando..." : "Crear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invitaciones pendientes */}
+      {data.pendingInvites.length > 0 && (
+        <section className="rounded-3xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Invitaciones pendientes
+          </h2>
+          <ul className="space-y-3">
+            {data.pendingInvites.map((inv) => (
+              <li key={inv.grupo_id} className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/15">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{inv.grupo_name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Invitado por {inv.invited_by_name ?? inv.invited_by_email ?? "alguien"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => handleRespond(inv.grupo_id, true)}
+                    disabled={respondingId === inv.grupo_id}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleRespond(inv.grupo_id, false)}
+                    disabled={respondingId === inv.grupo_id}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-muted disabled:opacity-60"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Lista de grupos */}
+      {data.grupos.length === 0 ? (
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-border/60 bg-card py-16 text-center shadow-sm">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Users className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Sin grupos todavía</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Crea un grupo para empezar a repartir gastos
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {data.grupos.map((g) => {
+            const myNet = g.balances.reduce((a, b) => a + b.net, 0);
+            const memberCount = g.members.filter((m) => m.status === "accepted").length;
+            return (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGrupoId(g.id)}
+                className="flex items-center gap-4 rounded-3xl border border-border/60 bg-card p-5 shadow-sm transition-shadow hover:shadow-md text-left"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-foreground">{g.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {memberCount} {memberCount === 1 ? "miembro" : "miembros"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  {Math.abs(myNet) < 0.01 ? (
+                    <span className="text-sm font-medium text-muted-foreground">En paz</span>
+                  ) : (
+                    <>
+                      <p
+                        className={`text-sm font-bold ${myNet > 0 ? "text-emerald-600" : "text-red-500"}`}
+                      >
+                        {myNet > 0 ? "+" : ""}{formatEUR(myNet)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {myNet > 0 ? "te deben" : "debes"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

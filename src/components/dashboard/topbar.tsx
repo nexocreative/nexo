@@ -12,7 +12,7 @@ const titles: Record<string, string> = {
   "/dashboard/limites": "Límites y alertas",
   "/dashboard/ahorro": "Ahorro",
   "/dashboard/graficas": "Gráficas",
-  "/dashboard/juntos": "Juntos",
+  "/dashboard/juntos": "En conjunto",
   "/dashboard/vacaciones": "Vacaciones",
 };
 

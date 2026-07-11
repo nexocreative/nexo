@@ -12,6 +12,11 @@ import type {
   VacationPeriod,
   Profile,
   PartnerLink,
+  GruposData,
+  GrupoConDetalle,
+  GrupoMiembro,
+  GrupoBalance,
+  GrupoInvite,
 } from "@/types/database";
 import {
   CATEGORIES,
@@ -955,4 +960,203 @@ export async function getVacations(userId: string): Promise<VacationsData> {
     active: list.filter((v) => v.status === "active").map(enrich)[0] ?? null,
     closed: list.filter((v) => v.status === "closed").map(enrich),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Grupos (gastos compartidos)
+// ---------------------------------------------------------------------------
+
+export async function getGrupos(userId: string): Promise<GruposData> {
+  const supabase = supabaseAdmin();
+
+  // Todos los grupos_miembros del usuario (accepted y pending recibidos)
+  const { data: misMembresias } = await supabase
+    .from("grupo_miembros")
+    .select("grupo_id, status, invited_by")
+    .eq("user_id", userId);
+
+  const membresiasPorGrupo = (misMembresias ?? []) as {
+    grupo_id: string;
+    status: string;
+    invited_by: string;
+  }[];
+
+  const gruposAceptadosIds = membresiasPorGrupo
+    .filter((m) => m.status === "accepted")
+    .map((m) => m.grupo_id);
+  const pendingIds = membresiasPorGrupo
+    .filter((m) => m.status === "pending")
+    .map((m) => m.grupo_id);
+
+  // Invitaciones pendientes
+  let pendingInvites: GrupoInvite[] = [];
+  if (pendingIds.length > 0) {
+    const { data: pendingGrupos } = await supabase
+      .from("grupos")
+      .select("id, name")
+      .in("id", pendingIds);
+
+    const invitedByIds = membresiasPorGrupo
+      .filter((m) => m.status === "pending")
+      .map((m) => m.invited_by);
+    const uniqueInviterIds = Array.from(new Set(invitedByIds));
+
+    const { data: inviters } = await supabase
+      .schema("next_auth")
+      .from("users")
+      .select("id, name, email")
+      .in("id", uniqueInviterIds);
+
+    const inviterMap = new Map(
+      (inviters ?? []).map((u: { id: string; name: string | null; email: string | null }) => [u.id, u]),
+    );
+
+    pendingInvites = membresiasPorGrupo
+      .filter((m) => m.status === "pending")
+      .map((m) => {
+        const grupo = (pendingGrupos ?? []).find((g: { id: string; name: string }) => g.id === m.grupo_id);
+        const inviter = inviterMap.get(m.invited_by);
+        return {
+          grupo_id: m.grupo_id,
+          grupo_name: grupo?.name ?? "",
+          invited_by_name: inviter?.name ?? null,
+          invited_by_email: inviter?.email ?? null,
+          created_at: "",
+        } as GrupoInvite;
+      });
+  }
+
+  if (gruposAceptadosIds.length === 0) {
+    return { grupos: [], pendingInvites };
+  }
+
+  // Datos de los grupos
+  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }, { data: partesRaw }] =
+    await Promise.all([
+      supabase.from("grupos").select("*").in("id", gruposAceptadosIds),
+      supabase
+        .from("grupo_miembros")
+        .select("*")
+        .in("grupo_id", gruposAceptadosIds),
+      supabase
+        .from("grupo_gastos")
+        .select("*")
+        .in("grupo_id", gruposAceptadosIds)
+        .order("occurred_at", { ascending: false }),
+      supabase
+        .from("grupo_gasto_partes")
+        .select("*")
+        .in(
+          "gasto_id",
+          // Se filtra después si no hay gastos
+          ["__placeholder__"],
+        ),
+    ]);
+
+  // Re-fetch partes solo si hay gastos
+  const gastos = (gastosRaw ?? []) as {
+    id: string;
+    grupo_id: string;
+    paid_by: string;
+    description: string;
+    amount: number;
+    occurred_at: string;
+    created_at: string;
+  }[];
+
+  let partes: {
+    id: string;
+    gasto_id: string;
+    user_id: string;
+    amount: number;
+    settled: boolean;
+    settled_at: string | null;
+  }[] = [];
+
+  if (gastos.length > 0) {
+    const { data: partesData } = await supabase
+      .from("grupo_gasto_partes")
+      .select("*")
+      .in("gasto_id", gastos.map((g) => g.id));
+    partes = (partesData ?? []) as typeof partes;
+  }
+
+  // Recopilar todos los user_ids para enriquecer con nombre/email
+  const miembros = (miembrosRaw ?? []) as {
+    id: string;
+    grupo_id: string;
+    user_id: string;
+    invited_by: string;
+    status: string;
+    created_at: string;
+  }[];
+
+  const allUserIds = Array.from(
+    new Set([...miembros.map((m) => m.user_id), ...gastos.map((g) => g.paid_by)]),
+  );
+
+  const { data: usersData } = await supabase
+    .schema("next_auth")
+    .from("users")
+    .select("id, name, email")
+    .in("id", allUserIds);
+
+  const userMap = new Map(
+    (usersData ?? []).map((u: { id: string; name: string | null; email: string | null }) => [u.id, u]),
+  );
+
+  const grupos: GrupoConDetalle[] = (gruposRaw ?? []).map(
+    (g: { id: string; name: string; created_by: string; created_at: string }) => {
+      const grupoMiembros: GrupoMiembro[] = miembros
+        .filter((m) => m.grupo_id === g.id)
+        .map((m) => ({
+          ...m,
+          status: m.status as GrupoMiembro["status"],
+          display_name: userMap.get(m.user_id)?.name ?? null,
+          email: userMap.get(m.user_id)?.email ?? null,
+        }));
+
+      const grupoGastos = gastos
+        .filter((gasto) => gasto.grupo_id === g.id)
+        .map((gasto) => ({
+          ...gasto,
+          amount: Number(gasto.amount),
+          partes: partes
+            .filter((p) => p.gasto_id === gasto.id)
+            .map((p) => ({ ...p, amount: Number(p.amount) })),
+          paid_by_name: userMap.get(gasto.paid_by)?.name ?? null,
+        }));
+
+      // Calcular balances: para cada miembro aceptado (distinto de mí), cuánto me debe o le debo
+      const aceptados = grupoMiembros.filter((m) => m.status === "accepted");
+      const balances: GrupoBalance[] = aceptados
+        .filter((m) => m.user_id !== userId)
+        .map((m) => {
+          // Lo que me debe: gastos que yo pagué donde él participa y no está settled
+          const meDebeAmount = grupoGastos
+            .filter((gasto) => gasto.paid_by === userId)
+            .flatMap((gasto) => gasto.partes)
+            .filter((p) => p.user_id === m.user_id && !p.settled)
+            .reduce((acc, p) => acc + p.amount, 0);
+
+          // Lo que le debo: gastos que él pagó donde yo participo y no está settled
+          const leDebAmount = grupoGastos
+            .filter((gasto) => gasto.paid_by === m.user_id)
+            .flatMap((gasto) => gasto.partes)
+            .filter((p) => p.user_id === userId && !p.settled)
+            .reduce((acc, p) => acc + p.amount, 0);
+
+          return {
+            user_id: m.user_id,
+            display_name: m.display_name,
+            email: m.email,
+            net: Math.round((meDebeAmount - leDebAmount) * 100) / 100,
+          };
+        });
+
+      return { id: g.id, name: g.name, created_by: g.created_by, members: grupoMiembros, gastos: grupoGastos, balances };
+    },
+  );
+
+  return { grupos, pendingInvites };
 }
