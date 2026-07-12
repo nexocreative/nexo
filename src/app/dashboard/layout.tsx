@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { getServerAuthSession } from "@/lib/auth";
-import { materializeRecurring, materializeSavingsPlan } from "@/lib/data/queries";
+import { materializeRecurring, materializeSavingsPlan, getPendingInvites } from "@/lib/data/queries";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 
@@ -31,7 +31,10 @@ export default async function DashboardLayout({
   }
 
   // Contabiliza automáticamente los gastos fijos y el plan de ahorro del mes.
-  await getMaterializeOnce(session.user.id)();
+  const [pendingInvites] = await Promise.all([
+    getPendingInvites(session.user.id),
+    getMaterializeOnce(session.user.id)(),
+  ]);
 
   return (
     <div className="nexo-canvas flex min-h-screen">
@@ -41,6 +44,7 @@ export default async function DashboardLayout({
           name={session.user.name}
           email={session.user.email}
           image={session.user.image}
+          pendingInvites={pendingInvites}
         />
         <main className="flex-1 px-5 pb-10 lg:px-8">{children}</main>
       </div>

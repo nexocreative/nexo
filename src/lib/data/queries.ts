@@ -963,6 +963,41 @@ export async function getVacations(userId: string): Promise<VacationsData> {
 }
 
 // ---------------------------------------------------------------------------
+// Notificaciones
+// ---------------------------------------------------------------------------
+
+export async function getPendingInvites(userId: string): Promise<GrupoInvite[]> {
+  const { data: membresias } = await supabaseAdmin()
+    .from("grupo_miembros")
+    .select("grupo_id, invited_by, created_at")
+    .eq("user_id", userId)
+    .eq("status", "pending");
+
+  if (!membresias || membresias.length === 0) return [];
+
+  const grupoIds = membresias.map((m: { grupo_id: string }) => m.grupo_id);
+  const inviterIds = Array.from(new Set(membresias.map((m: { invited_by: string }) => m.invited_by)));
+
+  const [{ data: grupos }, { data: inviters }] = await Promise.all([
+    supabaseAdmin().from("grupos").select("id, name").in("id", grupoIds),
+    supabaseAdmin().schema("next_auth").from("users").select("id, name, email").in("id", inviterIds),
+  ]);
+
+  const grupoMap = new Map((grupos ?? []).map((g: { id: string; name: string }) => [g.id, g]));
+  const inviterMap = new Map(
+    (inviters ?? []).map((u: { id: string; name: string | null; email: string | null }) => [u.id, u]),
+  );
+
+  return membresias.map((m: { grupo_id: string; invited_by: string; created_at: string }) => ({
+    grupo_id: m.grupo_id,
+    grupo_name: grupoMap.get(m.grupo_id)?.name ?? "",
+    invited_by_name: inviterMap.get(m.invited_by)?.name ?? null,
+    invited_by_email: inviterMap.get(m.invited_by)?.email ?? null,
+    created_at: m.created_at,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Grupos (gastos compartidos)
 // ---------------------------------------------------------------------------
 

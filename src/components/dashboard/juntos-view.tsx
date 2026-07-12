@@ -14,7 +14,7 @@ import {
   LogOut,
   CreditCard,
   ChevronDown,
-  ChevronUp,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   createGrupo,
@@ -68,8 +68,19 @@ function GrupoDetail({
   const [showAddGasto, setShowAddGasto] = React.useState(false);
   const [deleteGastoId, setDeleteGastoId] = React.useState<string | null>(null);
   const [settling, setSettling] = React.useState<string | null>(null);
+  const [settleConfirmId, setSettleConfirmId] = React.useState<string | null>(null);
   const [leaving, setLeaving] = React.useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
+  const [showMenu, setShowMenu] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Form state para añadir gasto
   const acceptedMembers = grupo.members.filter((m) => m.status === "accepted");
@@ -174,6 +185,25 @@ function GrupoDetail({
 
   const nonZeroBalances = grupo.balances.filter((b) => Math.abs(b.net) >= 0.01);
 
+  const acceptedAll = grupo.members.filter((m) => m.status === "accepted");
+  const totalGastado = grupo.gastos.reduce((a, g) => a + g.amount, 0);
+  const fairShare = acceptedAll.length > 0 ? totalGastado / acceptedAll.length : 0;
+  const fairSharePct = 100 / Math.max(acceptedAll.length, 1);
+
+  const memberStats = acceptedAll.map((m) => {
+    const paid = grupo.gastos
+      .filter((g) => g.paid_by === m.user_id)
+      .reduce((a, g) => a + g.amount, 0);
+    return {
+      user_id: m.user_id,
+      display_name: m.display_name,
+      email: m.email,
+      paid,
+      pct: totalGastado > 0 ? (paid / totalGastado) * 100 : 0,
+      net: paid - fairShare,
+    };
+  });
+
   return (
     <div className="space-y-6">
       {/* Cabecera */}
@@ -184,8 +214,111 @@ function GrupoDetail({
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{grupo.name}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold tracking-tight text-foreground">
+          {grupo.name}
+        </h1>
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setShowMenu((v) => !v)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-border bg-card py-1 shadow-xl">
+              <button
+                onClick={() => { setShowMenu(false); setShowLeaveConfirm(true); }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-muted"
+              >
+                <LogOut className="h-4 w-4" />
+                {grupo.created_by === currentUserId ? "Eliminar grupo" : "Abandonar grupo"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Resumen visual */}
+      {totalGastado > 0 && (
+        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+          {/* Total */}
+          <div className="mb-5 flex items-end justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Total gastado
+              </p>
+              <p className="mt-0.5 text-3xl font-extrabold tracking-tight text-foreground">
+                {formatEUR(totalGastado)}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {grupo.gastos.length} {grupo.gastos.length === 1 ? "gasto" : "gastos"} ·{" "}
+              {acceptedAll.length} personas
+            </p>
+          </div>
+
+          {/* Barras por persona */}
+          <div className="space-y-4">
+            {memberStats
+              .sort((a, b) => b.paid - a.paid)
+              .map((m) => {
+                const isPositive = m.net >= 0;
+                return (
+                  <div key={m.user_id}>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Avatar name={m.display_name} email={m.email} />
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          {m.user_id === currentUserId ? "Yo" : (m.display_name ?? m.email)}
+                        </span>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className="text-sm font-bold text-foreground">
+                          {formatEUR(m.paid)}
+                        </span>
+                        {Math.abs(m.net) >= 0.01 && (
+                          <span
+                            className={`ml-2 text-xs font-semibold ${isPositive ? "text-emerald-600" : "text-red-500"}`}
+                          >
+                            {isPositive ? "+" : ""}{formatEUR(m.net)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Barra */}
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full transition-all ${isPositive ? "bg-emerald-400" : "bg-red-400"}`}
+                        style={{ width: `${Math.min(m.pct, 100)}%` }}
+                      />
+                      {/* Línea de parte justa */}
+                      <div
+                        className="absolute top-0 h-full w-0.5 bg-foreground/30"
+                        style={{ left: `${fairSharePct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Leyenda */}
+          <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Pagó de más
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-400" />
+              Pagó de menos
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-0.5 bg-foreground/30" />
+              Parte justa
+            </span>
+          </div>
+        </section>
+      )}
 
       {/* Balances */}
       {nonZeroBalances.length > 0 && (
@@ -219,11 +352,10 @@ function GrupoDetail({
                 </div>
                 {Math.abs(b.net) >= 0.01 && (
                   <button
-                    onClick={() => handleSettle(b.user_id)}
-                    disabled={settling === b.user_id}
-                    className="shrink-0 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-60"
+                    onClick={() => setSettleConfirmId(b.user_id)}
+                    className="shrink-0 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
                   >
-                    {settling === b.user_id ? "..." : "Saldar"}
+                    Saldar
                   </button>
                 )}
               </li>
@@ -390,10 +522,10 @@ function GrupoDetail({
           </h2>
           <button
             onClick={() => setShowInvite((v) => !v)}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80"
           >
-            <UserPlus className="h-3.5 w-3.5" />
-            Invitar
+            <UserPlus className="h-4 w-4" />
+            Invitar persona
           </button>
         </div>
 
@@ -445,41 +577,63 @@ function GrupoDetail({
         </ul>
       </section>
 
-      {/* Abandonar / eliminar */}
-      <div className="pb-2">
-        {showLeaveConfirm ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-            <p className="text-sm font-semibold text-red-800">
-              {grupo.created_by === currentUserId
-                ? "¿Eliminar el grupo? Esta acción no se puede deshacer."
-                : "¿Abandonar el grupo?"}
-            </p>
-            <div className="mt-3 flex gap-2">
+      {/* Modal confirmar abandonar/eliminar grupo */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">
+              {grupo.created_by === currentUserId ? "¿Eliminar el grupo?" : "¿Abandonar el grupo?"}
+            </h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">Esta acción no se puede deshacer.</p>
+            <div className="mt-5 flex gap-3">
               <button
                 onClick={() => setShowLeaveConfirm(false)}
-                className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold hover:bg-muted"
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleLeave}
                 disabled={leaving}
-                className="flex-1 rounded-xl bg-red-500 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
               >
                 {leaving ? "..." : grupo.created_by === currentUserId ? "Eliminar" : "Abandonar"}
               </button>
             </div>
           </div>
-        ) : (
-          <button
-            onClick={() => setShowLeaveConfirm(true)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-red-500"
-          >
-            <LogOut className="h-4 w-4" />
-            {grupo.created_by === currentUserId ? "Eliminar grupo" : "Abandonar grupo"}
-          </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Modal confirmar saldar */}
+      {settleConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">¿Marcar como saldado?</h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Se marcarán todos los gastos pendientes entre vosotros como saldados.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setSettleConfirmId(null)}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  const id = settleConfirmId;
+                  setSettleConfirmId(null);
+                  await handleSettle(id);
+                }}
+                disabled={settling === settleConfirmId}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                {settling ? "..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal confirmar borrar gasto */}
       {deleteGastoId && (
@@ -568,9 +722,8 @@ export function JuntosView({ data, currentUserId }: Props) {
       {/* Cabecera */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">En conjunto</h1>
           {data.grupos.length > 0 && (
-            <p className={`mt-0.5 text-sm font-medium ${Math.abs(myNetTotal) < 0.01 ? "text-muted-foreground" : myNetTotal > 0 ? "text-emerald-600" : "text-red-500"}`}>
+            <p className={`text-sm font-medium ${Math.abs(myNetTotal) < 0.01 ? "text-muted-foreground" : myNetTotal > 0 ? "text-emerald-600" : "text-red-500"}`}>
               {Math.abs(myNetTotal) < 0.01
                 ? "Todo saldado"
                 : myNetTotal > 0
