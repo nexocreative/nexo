@@ -27,7 +27,7 @@ import {
   settleWithMember,
 } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
-import type { GruposData, GrupoConDetalle, GrupoBalance } from "@/types/database";
+import type { GruposData, GrupoConDetalle } from "@/types/database";
 
 interface Props {
   data: GruposData;
@@ -177,11 +177,6 @@ function GrupoDetail({
       toast.error(res.error);
     }
   }
-
-  const memberName = (uid: string) => {
-    const m = grupo.members.find((x) => x.user_id === uid);
-    return m?.display_name ?? m?.email ?? uid;
-  };
 
   const nonZeroBalances = grupo.balances.filter((b) => Math.abs(b.net) >= 0.01);
 
