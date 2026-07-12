@@ -27,6 +27,7 @@ import {
   addGrupoGasto,
   deleteGrupoGasto,
   settleWithMember,
+  createTransaction,
 } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import type { GruposData, GrupoConDetalle } from "@/types/database";
@@ -109,7 +110,8 @@ function GrupoDetail({
   const [showAddGasto, setShowAddGasto] = React.useState(false);
   const [deleteGastoId, setDeleteGastoId] = React.useState<string | null>(null);
   const [settling, setSettling] = React.useState<string | null>(null);
-  const [settleConfirmId, setSettleConfirmId] = React.useState<string | null>(null);
+  const [settleConfirm, setSettleConfirm] = React.useState<{ userId: string; net: number; name: string | null } | null>(null);
+  const [settleAddToMovements, setSettleAddToMovements] = React.useState(false);
   const [leaving, setLeaving] = React.useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
   const [showMenu, setShowMenu] = React.useState(false);
@@ -196,9 +198,21 @@ function GrupoDetail({
     }
   }
 
-  async function handleSettle(otherUserId: string) {
+  async function handleSettle(otherUserId: string, net: number, addToMovements: boolean) {
     setSettling(otherUserId);
     const res = await settleWithMember(grupo.id, otherUserId);
+    if (res.ok && addToMovements && Math.abs(net) >= 0.01) {
+      const otherName = grupo.members.find((m) => m.user_id === otherUserId)?.display_name
+        ?? grupo.members.find((m) => m.user_id === otherUserId)?.email
+        ?? "compañero";
+      await createTransaction({
+        type: net < 0 ? "expense" : "income",
+        amount: Math.abs(net),
+        category: net < 0 ? "otros" : null,
+        description: `${net < 0 ? "Pago a" : "Cobro de"} ${otherName} - ${grupo.name}`,
+        source: "manual",
+      });
+    }
     setSettling(null);
     if (res.ok) {
       toast.success("Saldado");
@@ -421,7 +435,7 @@ function GrupoDetail({
                 </div>
                 {Math.abs(b.net) >= 0.01 && (
                   <button
-                    onClick={() => setSettleConfirmId(b.user_id)}
+                    onClick={() => { setSettleAddToMovements(false); setSettleConfirm({ userId: b.user_id, net: b.net, name: b.display_name ?? b.email }); }}
                     className="shrink-0 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
                   >
                     Saldar
@@ -674,27 +688,44 @@ function GrupoDetail({
       )}
 
       {/* Modal confirmar saldar */}
-      {settleConfirmId && (
+      {settleConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
             <h4 className="text-base font-bold text-foreground">¿Marcar como saldado?</h4>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Se marcarán todos los gastos pendientes entre vosotros como saldados.
+              {" "}<span className="font-semibold text-foreground">
+                {settleConfirm.net < 0
+                  ? `Debes ${formatEUR(Math.abs(settleConfirm.net))} a ${settleConfirm.name ?? "esta persona"}.`
+                  : `Te deben ${formatEUR(settleConfirm.net)} de ${settleConfirm.name ?? "esta persona"}.`}
+              </span>
             </p>
+            <label className="mt-4 flex cursor-pointer items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={settleAddToMovements}
+                onChange={(e) => setSettleAddToMovements(e.target.checked)}
+                className="h-4 w-4 rounded accent-primary"
+              />
+              <span className="text-sm text-foreground">
+                Añadir {formatEUR(Math.abs(settleConfirm.net))} a mis movimientos
+                {settleConfirm.net < 0 ? " (gasto)" : " (ingreso)"}
+              </span>
+            </label>
             <div className="mt-5 flex gap-3">
               <button
-                onClick={() => setSettleConfirmId(null)}
+                onClick={() => setSettleConfirm(null)}
                 className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
               >
                 Cancelar
               </button>
               <button
                 onClick={async () => {
-                  const id = settleConfirmId;
-                  setSettleConfirmId(null);
-                  await handleSettle(id);
+                  const { userId, net } = settleConfirm;
+                  setSettleConfirm(null);
+                  await handleSettle(userId, net, settleAddToMovements);
                 }}
-                disabled={settling === settleConfirmId}
+                disabled={settling === settleConfirm.userId}
                 className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
               >
                 {settling ? "..." : "Confirmar"}
