@@ -1066,7 +1066,7 @@ export async function getGrupos(userId: string): Promise<GruposData> {
   }
 
   // Datos de los grupos
-  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }, { data: partesRaw }] =
+  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }] =
     await Promise.all([
       supabase.from("grupos").select("*").in("id", gruposAceptadosIds),
       supabase
@@ -1078,14 +1078,6 @@ export async function getGrupos(userId: string): Promise<GruposData> {
         .select("*")
         .in("grupo_id", gruposAceptadosIds)
         .order("occurred_at", { ascending: false }),
-      supabase
-        .from("grupo_gasto_partes")
-        .select("*")
-        .in(
-          "gasto_id",
-          // Se filtra después si no hay gastos
-          ["__placeholder__"],
-        ),
     ]);
 
   // Re-fetch partes solo si hay gastos
