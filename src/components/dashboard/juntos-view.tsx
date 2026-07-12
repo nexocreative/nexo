@@ -15,11 +15,13 @@ import {
   CreditCard,
   ChevronDown,
   MoreHorizontal,
+  Pencil,
 } from "lucide-react";
 import {
   createGrupo,
   deleteGrupo,
   leaveGrupo,
+  renameGrupo,
   inviteGrupoMember,
   respondToGrupoInvite,
   addGrupoGasto,
@@ -39,6 +41,45 @@ function fmtDay(iso: string) {
     day: "numeric",
     month: "short",
   });
+}
+
+function BarWithTooltip({
+  pct,
+  isPositive,
+  shouldPay,
+  totalGastado,
+}: {
+  pct: number;
+  isPositive: boolean;
+  shouldPay: number;
+  totalGastado: number;
+}) {
+  const linePct = totalGastado > 0 ? Math.min((shouldPay / totalGastado) * 100, 100) : 0;
+
+  return (
+    <div className="relative h-3 w-full">
+      <div className="relative h-full w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full transition-all ${isPositive ? "bg-emerald-400" : "bg-red-400"}`}
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
+      </div>
+      {/* Zona hover alrededor de la línea */}
+      {totalGastado > 0 && (
+        <div
+          className="group absolute top-0 flex h-full -translate-x-1/2 cursor-default items-center justify-center px-2"
+          style={{ left: `${linePct}%` }}
+        >
+          <div className="h-full w-0.5 bg-foreground/40" />
+          <div className="pointer-events-none absolute bottom-full mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-2 py-1 text-xs font-semibold text-background group-hover:block"
+            style={{ left: "50%" }}
+          >
+            Su parte: {formatEUR(shouldPay)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Avatar({ name, email }: { name: string | null; email: string | null }) {
@@ -72,6 +113,9 @@ function GrupoDetail({
   const [leaving, setLeaving] = React.useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
   const [showMenu, setShowMenu] = React.useState(false);
+  const [editingName, setEditingName] = React.useState(false);
+  const [nameValue, setNameValue] = React.useState(grupo.name);
+  const [savingName, setSavingName] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -164,6 +208,16 @@ function GrupoDetail({
     }
   }
 
+  async function handleSaveName() {
+    if (!nameValue.trim() || nameValue.trim() === grupo.name) { setEditingName(false); return; }
+    setSavingName(true);
+    const res = await renameGrupo(grupo.id, nameValue);
+    setSavingName(false);
+    if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
+    else toast.error(res.error);
+    setEditingName(false);
+  }
+
   async function handleLeave() {
     setLeaving(true);
     const isCreator = grupo.created_by === currentUserId;
@@ -182,20 +236,24 @@ function GrupoDetail({
 
   const acceptedAll = grupo.members.filter((m) => m.status === "accepted");
   const totalGastado = grupo.gastos.reduce((a, g) => a + g.amount, 0);
-  const fairShare = acceptedAll.length > 0 ? totalGastado / acceptedAll.length : 0;
-  const fairSharePct = 100 / Math.max(acceptedAll.length, 1);
 
   const memberStats = acceptedAll.map((m) => {
     const paid = grupo.gastos
       .filter((g) => g.paid_by === m.user_id)
       .reduce((a, g) => a + g.amount, 0);
+    // Lo que debería haber pagado = suma de sus partes en todos los gastos en que participa
+    const shouldPay = grupo.gastos
+      .flatMap((g) => g.partes)
+      .filter((p) => p.user_id === m.user_id)
+      .reduce((a, p) => a + p.amount, 0);
     return {
       user_id: m.user_id,
       display_name: m.display_name,
       email: m.email,
       paid,
+      shouldPay,
       pct: totalGastado > 0 ? (paid / totalGastado) * 100 : 0,
-      net: paid - fairShare,
+      net: paid - shouldPay,
     };
   });
 
@@ -209,9 +267,27 @@ function GrupoDetail({
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold tracking-tight text-foreground">
-          {grupo.name}
-        </h1>
+        {editingName ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <input
+              autoFocus
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
+              className="min-w-0 flex-1 rounded-xl border border-primary/50 bg-card px-3 py-1.5 text-xl font-extrabold outline-none"
+            />
+            <button onClick={handleSaveName} disabled={savingName} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-60">
+              <Check className="h-4 w-4" />
+            </button>
+            <button onClick={() => { setEditingName(false); setNameValue(grupo.name); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold tracking-tight text-foreground">
+            {grupo.name}
+          </h1>
+        )}
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setShowMenu((v) => !v)}
@@ -221,6 +297,15 @@ function GrupoDetail({
           </button>
           {showMenu && (
             <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-border bg-card py-1 shadow-xl">
+              {grupo.created_by === currentUserId && (
+                <button
+                  onClick={() => { setShowMenu(false); setNameValue(grupo.name); setEditingName(true); }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar nombre
+                </button>
+              )}
               <button
                 onClick={() => { setShowMenu(false); setShowLeaveConfirm(true); }}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-muted"
@@ -237,18 +322,12 @@ function GrupoDetail({
       {totalGastado > 0 && (
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
           {/* Total */}
-          <div className="mb-5 flex items-end justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Total gastado
-              </p>
-              <p className="mt-0.5 text-3xl font-extrabold tracking-tight text-foreground">
-                {formatEUR(totalGastado)}
-              </p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {grupo.gastos.length} {grupo.gastos.length === 1 ? "gasto" : "gastos"} ·{" "}
-              {acceptedAll.length} personas
+          <div className="mb-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Total gastado
+            </p>
+            <p className="mt-0.5 text-3xl font-extrabold tracking-tight text-foreground">
+              {formatEUR(totalGastado)}
             </p>
           </div>
 
@@ -281,17 +360,12 @@ function GrupoDetail({
                       </div>
                     </div>
                     {/* Barra */}
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full transition-all ${isPositive ? "bg-emerald-400" : "bg-red-400"}`}
-                        style={{ width: `${Math.min(m.pct, 100)}%` }}
-                      />
-                      {/* Línea de parte justa */}
-                      <div
-                        className="absolute top-0 h-full w-0.5 bg-foreground/30"
-                        style={{ left: `${fairSharePct}%` }}
-                      />
-                    </div>
+                    <BarWithTooltip
+                      pct={m.pct}
+                      isPositive={isPositive}
+                      shouldPay={m.shouldPay}
+                      totalGastado={totalGastado}
+                    />
                   </div>
                 );
               })}

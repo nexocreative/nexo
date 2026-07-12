@@ -737,6 +737,20 @@ export async function renameVacation(id: string, name: string): Promise<ActionRe
 
 // ─── Grupos (gastos compartidos) ─────────────────────────────────────────────
 
+export async function renameGrupo(grupoId: string, name: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 80) return { ok: false, error: "Nombre inválido" };
+  const { error } = await supabaseAdmin()
+    .from("grupos")
+    .update({ name: trimmed })
+    .eq("id", grupoId)
+    .eq("created_by", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/juntos");
+  return { ok: true };
+}
+
 export async function createGrupo(name: string): Promise<ActionResult & { id?: string }> {
   const userId = await requireUserId();
   const trimmed = name.trim();
