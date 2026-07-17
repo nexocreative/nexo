@@ -6,7 +6,7 @@
 import type { CategoryKey } from "@/lib/constants";
 
 export type TransactionType = "expense" | "income";
-export type TransactionSource = "manual" | "photo" | "voice" | "recurring" | "chat";
+export type TransactionSource = "manual" | "photo" | "voice" | "recurring" | "chat" | "import";
 
 export interface Profile {
   id: string; // = next_auth.users.id

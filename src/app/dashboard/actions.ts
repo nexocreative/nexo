@@ -34,7 +34,7 @@ const txSchema = z.object({
   merchant: z.string().trim().max(120).optional(),
   description: z.string().trim().max(240).optional(),
   occurred_at: z.string().optional(),
-  source: z.enum(["manual", "photo", "voice", "chat"]).default("manual"),
+  source: z.enum(["manual", "photo", "voice", "chat", "import"]).default("manual"),
   vacation_id: z.string().uuid().nullable().optional(),
   receipt_url: z.string().max(400).nullable().optional(),
   ai_confidence: z.coerce.number().min(0).max(1).nullable().optional(),
@@ -63,6 +63,49 @@ export async function createTransaction(input: unknown): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard", "layout");
   return { ok: true };
+}
+
+// --- Importar movimientos en bloque (extracto bancario) --------------------
+
+// A diferencia de txSchema, la categoría aquí es texto libre: los gastos se
+// normalizan contra CATEGORY_KEYS al insertar, pero los ingresos importados
+// admiten cualquier texto (igual que en el alta manual de ingresos).
+const bulkTxRowSchema = z.object({
+  type: z.enum(["expense", "income"]),
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  category: z.string().trim().max(60).nullable().optional(),
+  description: z.string().trim().max(240).optional(),
+  occurred_at: z.string().optional(),
+});
+const bulkTxSchema = z.array(bulkTxRowSchema).min(1).max(400);
+
+export async function createTransactionsBulk(
+  input: unknown,
+): Promise<ActionResult & { inserted?: number }> {
+  const userId = await requireUserId();
+  const parsed = bulkTxSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const rows = parsed.data.map((d) => {
+    const cat = d.category?.trim() || "";
+    return {
+      user_id: userId,
+      type: d.type,
+      amount: d.amount,
+      category: d.type === "income" ? (cat || null) : ((CATEGORY_KEYS as readonly string[]).includes(cat) ? cat : "otros"),
+      merchant: null,
+      description: d.description || null,
+      occurred_at: d.occurred_at || new Date().toISOString().slice(0, 10),
+      source: "import" as const,
+      receipt_url: null,
+      ai_confidence: null,
+    };
+  });
+  const { error } = await supabaseAdmin().from("transactions").insert(rows);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true, inserted: rows.length };
 }
 
 // --- Añadir ingreso (con categoría libre: Salario, Otros, o personalizada) --

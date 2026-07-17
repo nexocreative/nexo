@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp } from "lucide-react";
+import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp, FileSpreadsheet, ArrowLeft } from "lucide-react";
 import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { ImportarSection } from "@/components/dashboard/import-section";
 import { createTransaction, createIncome } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -27,32 +28,57 @@ const incomeMethods: { key: IncomeMethod; title: string; desc: string; icon: typ
 ];
 
 export function AddExpense({ incomeCategories }: { incomeCategories: string[] }) {
-  const [tab, setTab] = React.useState<"gastos" | "ingresos">("gastos");
+  const [tab, setTab] = React.useState<"gastos" | "ingresos" | "importar">("gastos");
 
   return (
     <div className="space-y-8">
-      <div className="flex w-fit rounded-xl border border-border/60 bg-muted/40 p-1 gap-1">
-        <button
-          onClick={() => setTab("gastos")}
-          className={cn(
-            "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
-            tab === "gastos" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Gastos
-        </button>
-        <button
-          onClick={() => setTab("ingresos")}
-          className={cn(
-            "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
-            tab === "ingresos" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Ingresos
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {tab === "importar" ? (
+          <button
+            onClick={() => setTab("gastos")}
+            className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"
+          >
+            <ArrowLeft className="h-4 w-4" /> Volver
+          </button>
+        ) : (
+          <>
+            <div className="flex w-fit rounded-xl border border-border/60 bg-muted/40 p-1 gap-1">
+              <button
+                onClick={() => setTab("gastos")}
+                className={cn(
+                  "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
+                  tab === "gastos" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Gastos
+              </button>
+              <button
+                onClick={() => setTab("ingresos")}
+                className={cn(
+                  "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
+                  tab === "ingresos" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Ingresos
+              </button>
+            </div>
+            <button
+              onClick={() => setTab("importar")}
+              className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"
+            >
+              <FileSpreadsheet className="h-4 w-4" /> Importar extracto
+            </button>
+          </>
+        )}
       </div>
 
-      {tab === "gastos" ? <GastosSection /> : <IngresosSection incomeCategories={incomeCategories} />}
+      {tab === "gastos" ? (
+        <GastosSection />
+      ) : tab === "ingresos" ? (
+        <IngresosSection incomeCategories={incomeCategories} />
+      ) : (
+        <ImportarSection />
+      )}
     </div>
   );
 }

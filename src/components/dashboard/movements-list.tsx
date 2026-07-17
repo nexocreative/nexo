@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, PiggyBank, Trash2 } from "lucide-react";
+import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, PiggyBank, Trash2, FileSpreadsheet } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ const SOURCE: Record<string, { label: string; icon: typeof Camera }> = {
   chat: { label: "Chat", icon: MessageSquare },
   recurring: { label: "Recurrente", icon: Repeat },
   plan: { label: "Ahorro programado", icon: PiggyBank },
+  import: { label: "Extracto", icon: FileSpreadsheet },
 };
 
 function RowIcon({ row }: { row: MovementRow }) {
