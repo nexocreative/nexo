@@ -32,7 +32,7 @@ export function AddExpense({ incomeCategories }: { incomeCategories: string[] })
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         {tab === "importar" ? (
           <button
             onClick={() => setTab("gastos")}
@@ -42,11 +42,11 @@ export function AddExpense({ incomeCategories }: { incomeCategories: string[] })
           </button>
         ) : (
           <>
-            <div className="flex w-fit rounded-xl border border-border/60 bg-muted/40 p-1 gap-1">
+            <div className="flex w-fit shrink-0 rounded-xl border border-border/60 bg-muted/40 p-1 gap-1">
               <button
                 onClick={() => setTab("gastos")}
                 className={cn(
-                  "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
+                  "rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-5",
                   tab === "gastos" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -55,7 +55,7 @@ export function AddExpense({ incomeCategories }: { incomeCategories: string[] })
               <button
                 onClick={() => setTab("ingresos")}
                 className={cn(
-                  "rounded-lg px-5 py-2 text-sm font-semibold transition-colors",
+                  "rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-5",
                   tab === "ingresos" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -64,9 +64,11 @@ export function AddExpense({ incomeCategories }: { incomeCategories: string[] })
             </div>
             <button
               onClick={() => setTab("importar")}
-              className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border/60 bg-card px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40 sm:gap-2 sm:px-4"
             >
-              <FileSpreadsheet className="h-4 w-4" /> Importar extracto
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="sm:hidden">Importar</span>
+              <span className="hidden sm:inline">Importar extracto</span>
             </button>
           </>
         )}
