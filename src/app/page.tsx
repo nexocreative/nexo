@@ -127,7 +127,13 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:hidden"
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/login"
+              className="hidden items-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:inline-flex"
             >
               Empezar gratis
             </Link>
