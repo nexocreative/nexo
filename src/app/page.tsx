@@ -96,11 +96,11 @@ const faqs = [
   },
   {
     q: "¿Mis datos están seguros?",
-    a: "Sí. Cada persona solo ve su propia información y la vista en pareja requiere consentimiento explícito de ambas partes.",
+    a: "Sí. Cada persona solo ve su propia información y unirse a un grupo requiere invitación y aceptación explícita.",
   },
   {
-    q: "¿Puedo usarlo con mi pareja?",
-    a: "Claro. Con la vista 'Juntos' veis el dinero de los dos de forma consolidada, manteniendo cada uno su privacidad cuando queráis.",
+    q: "¿Puedo usarlo con más gente?",
+    a: "Claro. Con 'En conjunto' creas grupos para repartir gastos compartidos, ver quién debe a quién y saldar cuentas, manteniendo cada uno su privacidad en el resto de su dinero.",
   },
   {
     q: "¿Funciona en el móvil?",
@@ -141,7 +141,7 @@ export default function HomePage() {
         <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-5 py-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
             <Sparkles className="h-4 w-4" style={{ color: PALETTE.lilaInk }} />
-            Finanzas con IA · solo o en pareja
+            Finanzas con IA · solo o en grupo
           </span>
           <h1 className="mt-7 text-balance text-5xl font-extrabold leading-[1.02] tracking-tight text-foreground sm:text-7xl">
             Haz una foto.
