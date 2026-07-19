@@ -136,9 +136,9 @@ export default function HomePage() {
       </header>
 
       {/* Hero */}
-      <section className="relative isolate -mt-[72px] overflow-hidden pt-[72px]" style={heroBg}>
+      <section className="relative isolate -mt-[72px] flex min-h-dvh flex-col overflow-hidden pt-[72px]" style={heroBg}>
         <DottedSurface />
-        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 pb-16 pt-10 text-center lg:pb-28 lg:pt-[70px]">
+        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-5 py-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
             <Sparkles className="h-4 w-4" style={{ color: PALETTE.lilaInk }} />
             Finanzas con IA · solo o en pareja
