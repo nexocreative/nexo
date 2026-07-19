@@ -13,7 +13,7 @@ import {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string };
+  searchParams: { callbackUrl?: string; tab?: string };
 }) {
   const session = await getServerAuthSession();
   if (session) {
@@ -34,7 +34,10 @@ export default async function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm callbackUrl={searchParams.callbackUrl} />
+          <LoginForm
+            callbackUrl={searchParams.callbackUrl}
+            defaultTab={searchParams.tab === "register" ? "register" : "login"}
+          />
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Al continuar aceptas el tratamiento de tus datos. Cada usuario solo
             ve su propia información.

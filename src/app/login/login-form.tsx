@@ -10,7 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+export function LoginForm({
+  callbackUrl,
+  defaultTab = "login",
+}: {
+  callbackUrl?: string;
+  defaultTab?: "login" | "register";
+}) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
   const [showLoginPassword, setShowLoginPassword] = React.useState(false);
@@ -77,7 +83,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   }
 
   return (
-    <Tabs defaultValue="login" className="w-full">
+    <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="login">Entrar</TabsTrigger>
         <TabsTrigger value="register">Crear cuenta</TabsTrigger>
