@@ -650,16 +650,24 @@ export async function materializeSavingsPlan(userId: string): Promise<void> {
   const categories = (cats as SavingsCategory[]) ?? [];
   if (categories.length === 0) return;
 
-  const { data: existing } = await supabaseAdmin()
-    .from("savings_entries")
-    .select("category_id")
-    .eq("user_id", userId)
-    .eq("month", mk)
-    .eq("source", "plan");
+  const [{ data: existing }, { data: skips }] = await Promise.all([
+    supabaseAdmin()
+      .from("savings_entries")
+      .select("category_id")
+      .eq("user_id", userId)
+      .eq("month", mk)
+      .eq("source", "plan"),
+    supabaseAdmin()
+      .from("savings_plan_skips")
+      .select("category_id")
+      .eq("user_id", userId)
+      .eq("month", mk),
+  ]);
   const done = new Set((existing ?? []).map((e) => e.category_id));
+  const skipped = new Set((skips ?? []).map((s) => s.category_id));
 
   const toInsert = categories
-    .filter((c) => !done.has(c.id))
+    .filter((c) => !done.has(c.id) && !skipped.has(c.id))
     .map((c) => ({
       user_id: userId,
       category_id: c.id,

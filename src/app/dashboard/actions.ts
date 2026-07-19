@@ -461,12 +461,26 @@ export async function addSavingsEntry(input: {
 export async function deleteSavingsEntry(id: string): Promise<ActionResult> {
   const userId = await requireUserId();
   if (!id) return { ok: false, error: "ID no válido" };
-  const { error } = await supabaseAdmin()
+  const { data, error } = await supabaseAdmin()
     .from("savings_entries")
     .delete()
     .eq("id", id)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("category_id, month, source")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+
+  // Si era el aporte automático del plan mensual, evita que se vuelva a
+  // crear solo para este mes (el usuario lo ha borrado a propósito).
+  if (data?.source === "plan" && data.category_id) {
+    await supabaseAdmin()
+      .from("savings_plan_skips")
+      .upsert(
+        { user_id: userId, category_id: data.category_id, month: data.month },
+        { onConflict: "category_id,month" },
+      );
+  }
+
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
