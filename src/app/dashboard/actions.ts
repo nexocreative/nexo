@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { requireUserId, getPartnerState, materializeRecurring, materializeSavingsPlan } from "@/lib/data/queries";
+import { requireUserId, getPartnerState, materializeRecurring } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
 
 /** Rango ISO [primer día, último día] del mes en curso (componentes locales). */
@@ -360,7 +360,6 @@ export async function createSavingsCategory(input: unknown): Promise<ActionResul
     sort_order,
   });
   if (error) return { ok: false, error: error.message };
-  await materializeSavingsPlan(userId).catch(() => {});
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
@@ -382,28 +381,6 @@ export async function updateSavingsCategory(id: string, input: unknown): Promise
     .eq("id", id)
     .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
-
-  // Si cambió el plan, actualiza la entrada 'plan' del mes en curso para que
-  // el balance refleje el nuevo importe al instante.
-  if (d.monthly_plan !== undefined) {
-    const mk = monthKey(new Date());
-    await supabaseAdmin()
-      .from("savings_entries")
-      .delete()
-      .eq("user_id", userId)
-      .eq("category_id", id)
-      .eq("month", mk)
-      .eq("source", "plan");
-    if (d.monthly_plan > 0) {
-      await supabaseAdmin().from("savings_entries").insert({
-        user_id: userId,
-        category_id: id,
-        amount: d.monthly_plan,
-        month: mk,
-        source: "plan",
-      });
-    }
-  }
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
@@ -461,26 +438,12 @@ export async function addSavingsEntry(input: {
 export async function deleteSavingsEntry(id: string): Promise<ActionResult> {
   const userId = await requireUserId();
   if (!id) return { ok: false, error: "ID no válido" };
-  const { data, error } = await supabaseAdmin()
+  const { error } = await supabaseAdmin()
     .from("savings_entries")
     .delete()
     .eq("id", id)
-    .eq("user_id", userId)
-    .select("category_id, month, source")
-    .maybeSingle();
+    .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
-
-  // Si era el aporte automático del plan mensual, evita que se vuelva a
-  // crear solo para este mes (el usuario lo ha borrado a propósito).
-  if (data?.source === "plan" && data.category_id) {
-    await supabaseAdmin()
-      .from("savings_plan_skips")
-      .upsert(
-        { user_id: userId, category_id: data.category_id, month: data.month },
-        { onConflict: "category_id,month" },
-      );
-  }
-
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }

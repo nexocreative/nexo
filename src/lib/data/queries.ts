@@ -636,50 +636,6 @@ export async function ensureSavingsCategories(userId: string): Promise<void> {
     );
 }
 
-/**
- * Contabiliza el plan mensual de ahorro del mes en curso: por cada categoría
- * con plan > 0 que no tenga ya su entrada 'plan' del mes, la crea. Idempotente.
- */
-export async function materializeSavingsPlan(userId: string): Promise<void> {
-  const mk = monthKey(new Date());
-  const { data: cats } = await supabaseAdmin()
-    .from("savings_categories")
-    .select("*")
-    .eq("user_id", userId)
-    .gt("monthly_plan", 0);
-  const categories = (cats as SavingsCategory[]) ?? [];
-  if (categories.length === 0) return;
-
-  const [{ data: existing }, { data: skips }] = await Promise.all([
-    supabaseAdmin()
-      .from("savings_entries")
-      .select("category_id")
-      .eq("user_id", userId)
-      .eq("month", mk)
-      .eq("source", "plan"),
-    supabaseAdmin()
-      .from("savings_plan_skips")
-      .select("category_id")
-      .eq("user_id", userId)
-      .eq("month", mk),
-  ]);
-  const done = new Set((existing ?? []).map((e) => e.category_id));
-  const skipped = new Set((skips ?? []).map((s) => s.category_id));
-
-  const toInsert = categories
-    .filter((c) => !done.has(c.id) && !skipped.has(c.id))
-    .map((c) => ({
-      user_id: userId,
-      category_id: c.id,
-      amount: Number(c.monthly_plan),
-      month: mk,
-      source: "plan" as const,
-    }));
-  if (toInsert.length > 0) {
-    await supabaseAdmin().from("savings_entries").insert(toInsert);
-  }
-}
-
 export interface SavingsCategoryView {
   id: string;
   name: string;
@@ -702,7 +658,6 @@ export interface SavingsData {
 
 export async function getSavings(userId: string): Promise<SavingsData> {
   await ensureSavingsCategories(userId);
-  await materializeSavingsPlan(userId);
 
   const now = new Date();
   const mk = monthKey(now);

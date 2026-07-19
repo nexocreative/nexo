@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { getServerAuthSession } from "@/lib/auth";
-import { materializeRecurring, materializeSavingsPlan, getPendingInvites } from "@/lib/data/queries";
+import { materializeRecurring, getPendingInvites } from "@/lib/data/queries";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 
@@ -10,10 +10,7 @@ function getMaterializeOnce(userId: string) {
   const today = new Date().toISOString().slice(0, 10);
   return unstable_cache(
     async () => {
-      await Promise.all([
-        materializeRecurring(userId).catch(() => {}),
-        materializeSavingsPlan(userId).catch(() => {}),
-      ]);
+      await materializeRecurring(userId).catch(() => {});
     },
     [`materialize-${userId}-${today}`],
     { revalidate: 86400 },
@@ -30,7 +27,7 @@ export default async function DashboardLayout({
     redirect("/login?callbackUrl=/dashboard");
   }
 
-  // Contabiliza automáticamente los gastos fijos y el plan de ahorro del mes.
+  // Contabiliza automáticamente los gastos fijos recurrentes del mes.
   const [pendingInvites] = await Promise.all([
     getPendingInvites(session.user.id),
     getMaterializeOnce(session.user.id)(),
