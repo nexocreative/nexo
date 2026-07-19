@@ -335,6 +335,8 @@ export async function upsertCategoryLimit(
 const savingsCategorySchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(60),
   monthly_plan: z.coerce.number().min(0, "No puede ser negativo"),
+  target_amount: z.coerce.number().min(0, "No puede ser negativo").nullable().optional(),
+  target_date: z.string().nullable().optional(),
 });
 
 /** Crea una categoría de ahorro. */
@@ -357,6 +359,8 @@ export async function createSavingsCategory(input: unknown): Promise<ActionResul
     user_id: userId,
     name: d.name,
     monthly_plan: d.monthly_plan,
+    target_amount: d.target_amount ?? null,
+    target_date: d.target_date ?? null,
     sort_order,
   });
   if (error) return { ok: false, error: error.message };
@@ -364,7 +368,7 @@ export async function createSavingsCategory(input: unknown): Promise<ActionResul
   return { ok: true };
 }
 
-/** Edita una categoría de ahorro (nombre y/o plan mensual). */
+/** Edita una categoría de ahorro (nombre, plan mensual u objetivo por plazo). */
 export async function updateSavingsCategory(id: string, input: unknown): Promise<ActionResult> {
   const userId = await requireUserId();
   const parsed = savingsCategorySchema.partial().safeParse(input);
@@ -375,6 +379,8 @@ export async function updateSavingsCategory(id: string, input: unknown): Promise
   const patch: Record<string, unknown> = {};
   if (d.name !== undefined) patch.name = d.name;
   if (d.monthly_plan !== undefined) patch.monthly_plan = d.monthly_plan;
+  if (d.target_amount !== undefined) patch.target_amount = d.target_amount;
+  if (d.target_date !== undefined) patch.target_date = d.target_date;
   const { error } = await supabaseAdmin()
     .from("savings_categories")
     .update(patch)

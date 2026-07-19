@@ -37,6 +37,9 @@ export interface CategoryView {
   thisMonth: number;
   accumulated: number;
   byMonth: Record<string, number>;
+  targetAmount: number | null;
+  targetDate: string | null;
+  daysLeft: number | null;
 }
 
 export interface SavingsData {
@@ -127,13 +130,18 @@ export function SavingsManager({ data }: { data: SavingsData }) {
         ) : (
           <ul className="mt-5 space-y-4">
             {data.categories.map((c) => {
-              const pct = c.monthlyPlan > 0 ? Math.min(100, Math.round((c.thisMonth / c.monthlyPlan) * 100)) : 0;
+              const isGoal = c.targetAmount != null;
+              const pct = isGoal
+                ? Math.min(100, Math.round((c.accumulated / c.targetAmount!) * 100))
+                : c.monthlyPlan > 0
+                  ? Math.min(100, Math.round((c.thisMonth / c.monthlyPlan) * 100))
+                  : 0;
               return (
                 <li key={c.id}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="min-w-0 truncate text-sm font-semibold text-foreground">{c.name}</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-foreground">{formatEUR(c.thisMonth)}</span>
+                      <span className="text-sm font-bold text-foreground">{formatEUR(isGoal ? c.accumulated : c.thisMonth)}</span>
                       <button
                         onClick={() => setCatEditing(c)}
                         aria-label={`Editar ${c.name}`}
@@ -143,7 +151,12 @@ export function SavingsManager({ data }: { data: SavingsData }) {
                       </button>
                     </div>
                   </div>
-                  {c.monthlyPlan > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {isGoal
+                      ? <>de {formatEUR(c.targetAmount!)} · quedan {c.daysLeft} días</>
+                      : <>este mes{c.monthlyPlan > 0 && ` · plan ${formatEUR(c.monthlyPlan)}`}</>}
+                  </p>
+                  {(isGoal || c.monthlyPlan > 0) && (
                     <div className="mt-2 flex items-center gap-2">
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: PALETTE.lila }} />
@@ -266,29 +279,71 @@ function Stat({ icon: Icon, label, value, highlight }: { icon: React.ElementType
   );
 }
 
+type PlanMode = "fixed" | "goal";
+
 function CategoryDialog({ editing, onClose }: { editing: CatEditing; onClose: () => void }) {
   const router = useRouter();
   const item = editing && editing !== "new" ? editing : null;
 
   const [name, setName] = React.useState("");
+  const [mode, setMode] = React.useState<PlanMode>("fixed");
   const [plan, setPlan] = React.useState("");
+  const [targetAmount, setTargetAmount] = React.useState("");
+  const [targetDate, setTargetDate] = React.useState("");
   const [pending, setPending] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
 
   React.useEffect(() => {
     if (item) {
       setName(item.name);
-      setPlan(item.monthlyPlan ? String(item.monthlyPlan) : "");
+      if (item.targetAmount != null && item.targetDate) {
+        setMode("goal");
+        setTargetAmount(String(item.targetAmount));
+        setTargetDate(item.targetDate.slice(0, 10));
+        setPlan("");
+      } else {
+        setMode("fixed");
+        setPlan(item.monthlyPlan ? String(item.monthlyPlan) : "");
+        setTargetAmount("");
+        setTargetDate("");
+      }
     } else {
       setName("");
+      setMode("fixed");
       setPlan("");
+      setTargetAmount("");
+      setTargetDate("");
     }
     setConfirmDel(false);
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const goalPreview = React.useMemo(() => {
+    if (mode !== "goal") return null;
+    const amount = Number(targetAmount);
+    if (!amount || !targetDate) return null;
+    const accumulated = item?.accumulated ?? 0;
+    const daysLeft = Math.max(0, Math.ceil((new Date(targetDate).getTime() - Date.now()) / 86400000));
+    const monthsLeft = Math.max(1, daysLeft / 30);
+    const monthlyNeeded = Math.max(0, Math.round((amount - accumulated) / monthsLeft));
+    return { monthlyNeeded, daysLeft };
+  }, [mode, targetAmount, targetDate, item]);
+
   async function save() {
     setPending(true);
-    const payload = { name, monthly_plan: plan === "" ? 0 : Number(plan) };
+    const payload =
+      mode === "goal"
+        ? {
+            name,
+            monthly_plan: 0,
+            target_amount: targetAmount === "" ? 0 : Number(targetAmount),
+            target_date: targetDate || null,
+          }
+        : {
+            name,
+            monthly_plan: plan === "" ? 0 : Number(plan),
+            target_amount: null,
+            target_date: null,
+          };
     const res = item ? await updateSavingsCategory(item.id, payload) : await createSavingsCategory(payload);
     setPending(false);
     if (res.ok) {
@@ -327,17 +382,73 @@ function CategoryDialog({ editing, onClose }: { editing: CatEditing; onClose: ()
             />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan mensual (€)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={plan}
-              onChange={(e) => setPlan(e.target.value)}
-              placeholder="0.00 (opcional)"
-              className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-            />
-            <p className="mt-1.5 text-xs text-muted-foreground">Se apartará automáticamente cada mes y se restará del balance.</p>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cómo quieres planificarlo</label>
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("fixed")}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+                  mode === "fixed" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted",
+                )}
+              >
+                Importe fijo al mes
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("goal")}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+                  mode === "goal" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted",
+                )}
+              >
+                Objetivo con fecha
+              </button>
+            </div>
           </div>
+
+          {mode === "fixed" ? (
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan mensual (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={plan}
+                onChange={(e) => setPlan(e.target.value)}
+                placeholder="0.00 (opcional)"
+                className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">Es tu objetivo de referencia; el aporte de cada mes lo añades tú a mano.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Objetivo total (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={targetAmount}
+                  onChange={(e) => setTargetAmount(e.target.value)}
+                  placeholder="Ej. 2400"
+                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha límite</label>
+                <input
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {goalPreview
+                  ? `Necesitas ahorrar ≈ ${formatEUR(goalPreview.monthlyNeeded)}/mes (quedan ${goalPreview.daysLeft} días). Se recalcula solo según lo que vayas aportando.`
+                  : "Pon el importe y la fecha para ver cuánto necesitas ahorrar al mes."}
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 pt-1">
             <button

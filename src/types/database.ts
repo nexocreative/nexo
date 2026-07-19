@@ -71,7 +71,9 @@ export interface SavingsCategory {
   id: string;
   user_id: string;
   name: string;
-  monthly_plan: number; // importe planificado a ahorrar cada mes
+  monthly_plan: number; // importe planificado a ahorrar cada mes (modo fijo)
+  target_amount: number | null; // objetivo total (modo por plazo)
+  target_date: string | null; // fecha límite del objetivo (modo por plazo)
   sort_order: number;
   created_at: string;
 }

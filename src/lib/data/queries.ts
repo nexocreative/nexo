@@ -636,13 +636,34 @@ export async function ensureSavingsCategories(userId: string): Promise<void> {
     );
 }
 
+/**
+ * Cuánto hace falta ahorrar cada mes para llegar a un objetivo en su fecha
+ * límite, dado lo ya acumulado. Mismo cálculo que el objetivo de "En conjunto".
+ */
+function goalMonthlyNeeded(
+  targetAmount: number,
+  targetDate: string,
+  accumulated: number,
+  now: Date,
+): { monthlyNeeded: number; daysLeft: number } {
+  const target = new Date(targetDate);
+  const daysLeft = Math.max(0, Math.ceil((target.getTime() - now.getTime()) / 86400000));
+  const monthsLeft = Math.max(1, daysLeft / 30);
+  const remaining = targetAmount - accumulated;
+  const monthlyNeeded = Math.max(0, Math.round(remaining / monthsLeft));
+  return { monthlyNeeded, daysLeft };
+}
+
 export interface SavingsCategoryView {
   id: string;
   name: string;
-  monthlyPlan: number;
+  monthlyPlan: number; // importe fijo, o calculado si hay objetivo por plazo
   thisMonth: number; // ahorrado este mes en la categoría
   accumulated: number; // acumulado histórico
   byMonth: Record<string, number>; // "YYYY-MM" -> ahorrado ese mes
+  targetAmount: number | null;
+  targetDate: string | null;
+  daysLeft: number | null;
 }
 
 export interface SavingsData {
@@ -687,20 +708,30 @@ export async function getSavings(userId: string): Promise<SavingsData> {
     const mine = byCat(c.id);
     const byMonth: Record<string, number> = {};
     for (const { key } of monthKeys) byMonth[key] = sum(mine.filter((e) => e.month === key));
+    const accumulated = sum(mine);
+
+    const hasGoal = c.target_amount != null && c.target_date != null && Number(c.target_amount) > 0;
+    const goal = hasGoal
+      ? goalMonthlyNeeded(Number(c.target_amount), c.target_date as string, accumulated, now)
+      : null;
+
     return {
       id: c.id,
       name: c.name,
-      monthlyPlan: Number(c.monthly_plan),
+      monthlyPlan: goal ? goal.monthlyNeeded : Number(c.monthly_plan),
       thisMonth: sum(mine.filter((e) => e.month === mk)),
-      accumulated: sum(mine),
+      accumulated,
       byMonth,
+      targetAmount: hasGoal ? Number(c.target_amount) : null,
+      targetDate: hasGoal ? c.target_date : null,
+      daysLeft: goal ? goal.daysLeft : null,
     };
   });
 
   const thisMonth = sum(entries.filter((e) => e.month === mk));
   const yearTotal = sum(entries.filter((e) => e.month.startsWith(year)));
   const total = sum(entries);
-  const monthlyPlan = categories.reduce((a, c) => a + Number(c.monthly_plan), 0);
+  const monthlyPlan = catViews.reduce((a, c) => a + c.monthlyPlan, 0);
 
   // Serie de los últimos 12 meses (para la gráfica).
   const monthly = monthKeys.map(({ key, date }) => ({
