@@ -33,6 +33,10 @@ interface ImportRow {
 
 const CATEGORY_KEYS = CATEGORIES.map((c) => c.key) as string[];
 
+// Ancho de cada columna de la tabla de revisión: fijo según lo que
+// necesita su contenido, salvo Descripción, que se lleva el resto.
+const REVIEW_GRID_COLS = "2rem 7rem minmax(14rem,1fr) 9rem 10rem 8.5rem";
+
 function isValidDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
 }
@@ -180,23 +184,30 @@ export function ImportarSection() {
               onScroll={checkScroll}
               className="overflow-x-auto rounded-3xl border border-border/60 bg-card shadow-sm"
             >
-            <table className="w-full min-w-[860px] text-sm">
-              <thead className="bg-muted/40 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-3"></th>
-                  <th className="px-3 py-3">Fecha</th>
-                  <th className="px-3 py-3">Descripción</th>
-                  <th className="px-3 py-3">Tipo</th>
-                  <th className="px-3 py-3">Categoría</th>
-                  <th className="px-3 py-3">Importe</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
+            <div className="min-w-[900px] text-sm" role="table">
+              <div
+                role="row"
+                className="grid gap-x-4 bg-muted/40 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                style={{ gridTemplateColumns: REVIEW_GRID_COLS }}
+              >
+                <span role="columnheader" />
+                <span role="columnheader">Importe</span>
+                <span role="columnheader">Descripción</span>
+                <span role="columnheader">Fecha</span>
+                <span role="columnheader">Tipo</span>
+                <span role="columnheader">Categoría</span>
+              </div>
+              <div className="divide-y divide-border/60">
                 {rows.map((r, i) => {
                   const dateInvalid = !isValidDate(r.fecha);
                   return (
-                    <tr key={i}>
-                      <td className="px-3 py-2">
+                    <div
+                      key={i}
+                      role="row"
+                      className="grid items-center gap-x-4 px-3 py-2"
+                      style={{ gridTemplateColumns: REVIEW_GRID_COLS }}
+                    >
+                      <div role="cell">
                         <label className="relative flex h-4 w-4 cursor-pointer items-center justify-center">
                           <input
                             type="checkbox"
@@ -206,14 +217,38 @@ export function ImportarSection() {
                           />
                           <Check className="pointer-events-none absolute h-3 w-3 text-white opacity-0 peer-checked:opacity-100" />
                         </label>
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+                      <div role="cell">
+                        <div className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={r.importe}
+                            onChange={(e) => updateRow(i, { importe: e.target.value })}
+                            className="min-w-0 flex-1 bg-transparent text-right text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <span className="text-xs text-muted-foreground">€</span>
+                        </div>
+                      </div>
+                      <div role="cell">
+                        <input
+                          value={r.descripcion}
+                          onChange={(e) => updateRow(i, { descripcion: e.target.value })}
+                          className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 text-xs outline-none"
+                        />
+                        {r.posibleDuplicado && (
+                          <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-amber-600">
+                            <AlertTriangle className="h-3 w-3" /> Posible duplicado
+                          </span>
+                        )}
+                      </div>
+                      <div role="cell">
                         <input
                           type="date"
                           value={r.fecha}
                           onChange={(e) => updateRow(i, { fecha: e.target.value })}
                           className={cn(
-                            "w-36 rounded-lg border bg-transparent px-2 py-1.5 text-xs outline-none",
+                            "w-full rounded-lg border bg-transparent px-2 py-1.5 text-xs outline-none",
                             dateInvalid ? "border-destructive/60" : "border-border",
                           )}
                         />
@@ -222,20 +257,8 @@ export function ImportarSection() {
                             <CalendarClock className="h-3 w-3" /> Revisa la fecha
                           </span>
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          value={r.descripcion}
-                          onChange={(e) => updateRow(i, { descripcion: e.target.value })}
-                          className="w-56 rounded-lg border border-border bg-transparent px-2 py-1.5 text-xs outline-none"
-                        />
-                        {r.posibleDuplicado && (
-                          <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-amber-600">
-                            <AlertTriangle className="h-3 w-3" /> Posible duplicado
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+                      <div role="cell">
                         <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-border text-xs font-semibold">
                           <button
                             onClick={() => updateRow(i, { tipo: "expense", categoria: CATEGORY_KEYS.includes(r.categoria) ? r.categoria : "otros" })}
@@ -256,10 +279,10 @@ export function ImportarSection() {
                             Ingreso
                           </button>
                         </div>
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+                      <div role="cell">
                         {r.tipo === "expense" ? (
-                          <div className="relative w-32">
+                          <div className="relative">
                             <select
                               value={r.categoria}
                               onChange={(e) => updateRow(i, { categoria: e.target.value })}
@@ -276,27 +299,15 @@ export function ImportarSection() {
                             value={r.categoria}
                             onChange={(e) => updateRow(i, { categoria: e.target.value })}
                             placeholder="Ej. Nómina"
-                            className="w-32 rounded-lg border border-border bg-transparent px-2 py-1.5 text-xs outline-none"
+                            className="w-full rounded-lg border border-border bg-transparent px-2 py-1.5 text-xs outline-none"
                           />
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex w-28 items-center gap-1 rounded-lg border border-border px-2 py-1.5">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={r.importe}
-                            onChange={(e) => updateRow(i, { importe: e.target.value })}
-                            className="min-w-0 flex-1 bg-transparent text-right text-xs outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          />
-                          <span className="text-xs text-muted-foreground">€</span>
-                        </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
           {canScrollRight && (
             <div className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl bg-gradient-to-l from-card to-transparent" />
