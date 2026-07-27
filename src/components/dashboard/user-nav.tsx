@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { LogOut, Moon, Sun, User as UserIcon } from "lucide-react";
+import { LogOut, Moon, Settings, Sun } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -54,9 +55,11 @@ export function UserNav({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
-          <UserIcon className="mr-2 h-4 w-4" />
-          Ajustes
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/ajustes">
+            <Settings className="mr-2 h-4 w-4" />
+            Ajustes
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

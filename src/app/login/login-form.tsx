@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
@@ -103,7 +104,15 @@ export function LoginForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="login-password">Contraseña</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="login-password">Contraseña</Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <div className="relative">
               <Input
                 id="login-password"

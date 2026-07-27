@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Settings, Users, Check, X } from "lucide-react";
+import { Bell, Search, Users, Check, X } from "lucide-react";
 import { UserNav } from "@/components/dashboard/user-nav";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { respondToGrupoInvite } from "@/app/dashboard/actions";
@@ -18,6 +18,7 @@ const titles: Record<string, string> = {
   "/dashboard/graficas": "Gráficas",
   "/dashboard/juntos": "En conjunto",
   "/dashboard/vacaciones": "Vacaciones",
+  "/dashboard/ajustes": "Ajustes",
 };
 
 export function Topbar({
@@ -33,7 +34,7 @@ export function Topbar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const title = titles[pathname] ?? "Overview";
+  const title = titles[pathname] ?? "Nexo";
   const [open, setOpen] = React.useState(false);
   const [responding, setResponding] = React.useState<string | null>(null);
   const ref = React.useRef<HTMLDivElement>(null);
@@ -143,14 +144,6 @@ export function Topbar({
             </div>
           )}
         </div>
-
-        <button
-          type="button"
-          aria-label="Ajustes"
-          className="hidden h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground transition-colors hover:text-foreground sm:flex"
-        >
-          <Settings className="h-[18px] w-[18px]" />
-        </button>
 
         <UserNav name={name} email={email} image={image} />
       </div>

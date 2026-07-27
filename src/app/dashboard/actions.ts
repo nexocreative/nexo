@@ -5,6 +5,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireUserId, getPartnerState, materializeRecurring } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
+import { sendEmail } from "@/lib/email/send";
+import { grupoInviteEmail, grupoGastoEmail } from "@/lib/email/templates";
 
 /** Rango ISO [primer día, último día] del mes en curso (componentes locales). */
 function currentMonthRange() {
@@ -763,6 +765,76 @@ export async function renameVacation(id: string, name: string): Promise<ActionRe
 
 // ─── Grupos (gastos compartidos) ─────────────────────────────────────────────
 
+async function notifyGrupoInvite(params: {
+  grupoId: string;
+  inviterId: string;
+  targetUserId: string;
+  targetEmail: string;
+}): Promise<void> {
+  const admin = supabaseAdmin();
+  const [{ data: grupo }, { data: inviter }, { data: targetProfile }] = await Promise.all([
+    admin.from("grupos").select("name").eq("id", params.grupoId).maybeSingle(),
+    admin.from("profiles").select("display_name").eq("id", params.inviterId).maybeSingle(),
+    admin.from("profiles").select("notification_prefs").eq("id", params.targetUserId).maybeSingle(),
+  ]);
+
+  if (targetProfile?.notification_prefs?.grupo_invite === false) return;
+
+  await sendEmail({
+    to: params.targetEmail,
+    subject: "Te han invitado a un grupo en Nexo",
+    html: grupoInviteEmail({
+      grupoName: grupo?.name ?? "un grupo",
+      inviterName: inviter?.display_name ?? "Alguien",
+      link: `${process.env.NEXTAUTH_URL}/dashboard/juntos`,
+    }),
+  });
+}
+
+async function notifyGrupoGasto(params: {
+  grupoId: string;
+  actorId: string;
+  paidBy: string;
+  description: string;
+  amount: number;
+  partes: { user_id: string; amount: number }[];
+}): Promise<void> {
+  const recipients = params.partes.filter((p) => p.user_id !== params.actorId);
+  if (recipients.length === 0) return;
+
+  const admin = supabaseAdmin();
+  const recipientIds = recipients.map((p) => p.user_id);
+  const [{ data: grupo }, { data: payerProfile }, { data: users }, { data: profiles }] = await Promise.all([
+    admin.from("grupos").select("name").eq("id", params.grupoId).maybeSingle(),
+    admin.from("profiles").select("display_name").eq("id", params.paidBy).maybeSingle(),
+    admin.schema("next_auth").from("users").select("id, email").in("id", recipientIds),
+    admin.from("profiles").select("id, notification_prefs").in("id", recipientIds),
+  ]);
+
+  const emailById = new Map((users ?? []).map((u) => [u.id, u.email]));
+  const prefsById = new Map((profiles ?? []).map((p) => [p.id, p.notification_prefs]));
+
+  await Promise.all(
+    recipients.map((p) => {
+      if (prefsById.get(p.user_id)?.grupo_gasto === false) return null;
+      const email = emailById.get(p.user_id);
+      if (!email) return null;
+      return sendEmail({
+        to: email,
+        subject: "Nuevo gasto compartido en Nexo",
+        html: grupoGastoEmail({
+          grupoName: grupo?.name ?? "tu grupo",
+          payerName: payerProfile?.display_name ?? "Alguien",
+          description: params.description,
+          amount: params.amount,
+          share: p.amount,
+          link: `${process.env.NEXTAUTH_URL}/dashboard/juntos`,
+        }),
+      });
+    }),
+  );
+}
+
 export async function renameGrupo(grupoId: string, name: string): Promise<ActionResult> {
   const userId = await requireUserId();
   const trimmed = name.trim();
@@ -859,6 +931,14 @@ export async function inviteGrupoMember(grupoId: string, email: string): Promise
     if (error.code === "23505") return { ok: false, error: "Ese usuario ya es miembro del grupo" };
     return { ok: false, error: error.message };
   }
+
+  await notifyGrupoInvite({
+    grupoId,
+    inviterId: userId,
+    targetUserId: targetUser.id,
+    targetEmail: normalizedEmail,
+  });
+
   revalidatePath("/dashboard/juntos");
   return { ok: true };
 }
@@ -927,6 +1007,15 @@ export async function addGrupoGasto(input: unknown): Promise<ActionResult> {
 
   const { error: e2 } = await supabaseAdmin().from("grupo_gasto_partes").insert(partes);
   if (e2) return { ok: false, error: e2.message };
+
+  await notifyGrupoGasto({
+    grupoId: d.grupoId,
+    actorId: userId,
+    paidBy: d.paidBy,
+    description: d.description,
+    amount: d.amount,
+    partes,
+  });
 
   revalidatePath("/dashboard/juntos");
   return { ok: true };
