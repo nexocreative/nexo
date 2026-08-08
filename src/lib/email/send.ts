@@ -1,7 +1,7 @@
 import "server-only";
 import { resendClient } from "./resend";
 
-const DEFAULT_FROM = "Nexo <onboarding@resend.dev>";
+const DEFAULT_FROM = "Nexo <noreply@finanzasnexo.es>";
 
 /**
  * Envía un email vía Resend. Nunca lanza: si falta la API key (todavía no se
