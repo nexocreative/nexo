@@ -30,31 +30,67 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const { data: created, error } = await admin
+  // Si ya existe un registro "fantasma" (creado al invitarla a un grupo antes
+  // de que tuviera cuenta: solo email, sin contraseña), se completa esa misma
+  // cuenta en vez de crear una nueva, para no perder sus invitaciones.
+  const { data: existing } = await admin
     .schema("next_auth")
     .from("users")
-    .insert({ email, name: name ?? email.split("@")[0], password: passwordHash })
-    .select("id")
-    .single();
+    .select("id, password")
+    .eq("email", email)
+    .maybeSingle();
 
-  if (error) {
-    // 23505 = unique_violation (email ya registrado)
-    if (error.code === "23505") {
+  if (existing?.password) {
+    return NextResponse.json(
+      { error: "Ya existe una cuenta con ese email" },
+      { status: 409 },
+    );
+  }
+
+  let userId: string;
+  if (existing) {
+    const { data: updated, error } = await admin
+      .schema("next_auth")
+      .from("users")
+      .update({ name: name ?? email.split("@")[0], password: passwordHash })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+    if (error || !updated) {
+      console.error("Error completando cuenta invitada:", error);
       return NextResponse.json(
-        { error: "Ya existe una cuenta con ese email" },
-        { status: 409 },
+        { error: "No se pudo crear la cuenta" },
+        { status: 500 },
       );
     }
-    console.error("Error creando usuario:", error);
-    return NextResponse.json(
-      { error: "No se pudo crear la cuenta" },
-      { status: 500 },
-    );
+    userId = updated.id;
+  } else {
+    const { data: created, error } = await admin
+      .schema("next_auth")
+      .from("users")
+      .insert({ email, name: name ?? email.split("@")[0], password: passwordHash })
+      .select("id")
+      .single();
+    if (error) {
+      // 23505 = unique_violation (email ya registrado)
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "Ya existe una cuenta con ese email" },
+          { status: 409 },
+        );
+      }
+      console.error("Error creando usuario:", error);
+      return NextResponse.json(
+        { error: "No se pudo crear la cuenta" },
+        { status: 500 },
+      );
+    }
+    userId = created.id;
   }
 
   // Crea el perfil asociado.
   const { error: profileError } = await admin.from("profiles").insert({
-    id: created.id,
+    id: userId,
     display_name: name ?? email.split("@")[0],
     currency: "EUR",
   });

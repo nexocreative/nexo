@@ -14,9 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function LoginForm({
   callbackUrl,
   defaultTab = "login",
+  defaultEmail,
 }: {
   callbackUrl?: string;
   defaultTab?: "login" | "register";
+  defaultEmail?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
@@ -161,6 +163,7 @@ export function LoginForm({
               autoComplete="email"
               required
               placeholder="tu@email.com"
+              defaultValue={defaultEmail}
             />
           </div>
           <div className="space-y-2">

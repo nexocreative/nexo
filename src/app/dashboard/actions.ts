@@ -770,6 +770,7 @@ async function notifyGrupoInvite(params: {
   inviterId: string;
   targetUserId: string;
   targetEmail: string;
+  hasAccount: boolean;
 }): Promise<void> {
   const admin = supabaseAdmin();
   const [{ data: grupo }, { data: inviter }, { data: targetProfile }] = await Promise.all([
@@ -780,13 +781,18 @@ async function notifyGrupoInvite(params: {
 
   if (targetProfile?.notification_prefs?.grupo_invite === false) return;
 
+  const link = params.hasAccount
+    ? `${process.env.NEXTAUTH_URL}/dashboard/juntos`
+    : `${process.env.NEXTAUTH_URL}/login?tab=register&callbackUrl=%2Fdashboard%2Fjuntos&email=${encodeURIComponent(params.targetEmail)}`;
+
   await sendEmail({
     to: params.targetEmail,
     subject: "Te han invitado a un grupo en Nexo",
     html: grupoInviteEmail({
       grupoName: grupo?.name ?? "un grupo",
       inviterName: inviter?.display_name ?? "Alguien",
-      link: `${process.env.NEXTAUTH_URL}/dashboard/juntos`,
+      link,
+      needsAccount: !params.hasAccount,
     }),
   });
 }
@@ -911,17 +917,44 @@ export async function inviteGrupoMember(grupoId: string, email: string): Promise
     .maybeSingle();
   if (!self) return { ok: false, error: "No eres miembro de este grupo" };
 
+  const admin = supabaseAdmin();
+
   // Buscar al usuario por email en next_auth.users
-  const { data: targetUser } = await supabaseAdmin()
+  let { data: targetUser } = await admin
     .schema("next_auth")
     .from("users")
-    .select("id")
+    .select("id, password")
     .eq("email", normalizedEmail)
     .maybeSingle();
-  if (!targetUser) return { ok: false, error: "No existe ninguna cuenta de Nexo con ese email" };
+
+  // No tiene cuenta todavía: se crea un registro "fantasma" (solo email, sin
+  // contraseña) para poder enlazarlo a la invitación. Al registrarse con ese
+  // mismo email, /api/register completa esa cuenta en vez de crear otra.
+  const hasAccount = !!targetUser?.password;
+  if (!targetUser) {
+    const { data: created, error: createErr } = await admin
+      .schema("next_auth")
+      .from("users")
+      .insert({ email: normalizedEmail })
+      .select("id, password")
+      .single();
+    if (createErr) {
+      // Carrera con otra invitación simultánea al mismo email: reintenta la búsqueda.
+      const { data: existing } = await admin
+        .schema("next_auth")
+        .from("users")
+        .select("id, password")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      if (!existing) return { ok: false, error: "No se pudo crear la invitación" };
+      targetUser = existing;
+    } else {
+      targetUser = created;
+    }
+  }
   if (targetUser.id === userId) return { ok: false, error: "No puedes invitarte a ti mismo" };
 
-  const { error } = await supabaseAdmin().from("grupo_miembros").insert({
+  const { error } = await admin.from("grupo_miembros").insert({
     grupo_id: grupoId,
     user_id: targetUser.id,
     invited_by: userId,
@@ -937,6 +970,7 @@ export async function inviteGrupoMember(grupoId: string, email: string): Promise
     inviterId: userId,
     targetUserId: targetUser.id,
     targetEmail: normalizedEmail,
+    hasAccount,
   });
 
   revalidatePath("/dashboard/juntos");

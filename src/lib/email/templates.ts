@@ -57,17 +57,23 @@ export function grupoInviteEmail({
   grupoName,
   inviterName,
   link,
+  needsAccount = false,
 }: {
   grupoName: string;
   inviterName: string;
   link: string;
+  needsAccount?: boolean;
 }): string {
+  const intro = needsAccount
+    ? `<strong>${inviterName}</strong> te invitó al grupo <strong>${grupoName}</strong> en Nexo para compartir gastos.
+       Crea tu cuenta gratis con este email para verla y unirte.`
+    : `<strong>${inviterName}</strong> te invitó al grupo <strong>${grupoName}</strong> en Nexo para compartir gastos.`;
   return layout(
     "Te han invitado a un grupo",
     `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;">
-      <strong>${inviterName}</strong> te invitó al grupo <strong>${grupoName}</strong> en Nexo para compartir gastos.
+      ${intro}
     </p>
-    ${button(link, "Ver invitación")}`,
+    ${button(link, needsAccount ? "Crear cuenta y unirme" : "Ver invitación")}`,
   );
 }
 
