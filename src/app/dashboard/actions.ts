@@ -953,8 +953,47 @@ export async function respondToGrupoInvite(grupoId: string, accept: boolean): Pr
     .eq("user_id", userId)
     .eq("status", "pending");
   if (error) return { ok: false, error: error.message };
+  if (accept) await includeMemberInExistingGastos(grupoId, userId);
   revalidatePath("/dashboard/juntos");
   return { ok: true };
+}
+
+/**
+ * Al aceptar una invitación, suma a quien se une como participante de los
+ * gastos ya creados en el grupo (p. ej. si se añadió un gasto antes de
+ * invitarla) y recalcula el reparto a partes iguales. No toca gastos que ya
+ * tengan alguna parte saldada, para no reabrir una deuda ya cerrada.
+ */
+async function includeMemberInExistingGastos(grupoId: string, newUserId: string) {
+  const admin = supabaseAdmin();
+  const { data: gastos } = await admin.from("grupo_gastos").select("id, amount").eq("grupo_id", grupoId);
+  if (!gastos || gastos.length === 0) return;
+
+  const gastoIds = gastos.map((g) => g.id);
+  const { data: partes } = await admin
+    .from("grupo_gasto_partes")
+    .select("id, gasto_id, user_id, amount, settled")
+    .in("gasto_id", gastoIds);
+
+  for (const gasto of gastos) {
+    const gastoPartes = (partes ?? []).filter((p) => p.gasto_id === gasto.id);
+    if (gastoPartes.length === 0) continue;
+    if (gastoPartes.some((p) => p.user_id === newUserId)) continue;
+    if (gastoPartes.some((p) => p.settled)) continue;
+
+    const participantCount = gastoPartes.length + 1;
+    const share = Math.round((gasto.amount / participantCount) * 100) / 100;
+    const newUserShare = Math.round((gasto.amount - share * (participantCount - 1)) * 100) / 100;
+
+    await Promise.all(
+      gastoPartes.map((p) => admin.from("grupo_gasto_partes").update({ amount: share }).eq("id", p.id)),
+    );
+    await admin.from("grupo_gasto_partes").insert({
+      gasto_id: gasto.id,
+      user_id: newUserId,
+      amount: newUserShare,
+    });
+  }
 }
 
 const grupoGastoSchema = z.object({
