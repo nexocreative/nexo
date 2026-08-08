@@ -17,7 +17,7 @@ function layout(title: string, bodyHtml: string): string {
         </td>
       </tr>
       <tr>
-        <td style="background:#ffffff;border:1px solid #E7E4F1;border-radius:16px;padding:40px 32px;">
+        <td style="background:#ffffff;border:1px solid #E7E4F1;border-radius:16px;padding:40px 32px;text-align:center;">
           <h1 style="font-family:${FONT_STACK};font-size:20px;font-weight:700;margin:0 0 16px;color:#262339;">${title}</h1>
           ${bodyHtml}
         </td>
@@ -33,7 +33,7 @@ function layout(title: string, bodyHtml: string): string {
 }
 
 function button(link: string, label: string): string {
-  return `<table role="presentation" style="margin-top:24px;">
+  return `<table role="presentation" align="center" style="margin:24px auto 0;">
     <tr>
       <td style="border-radius:12px;background:#A89EE8;">
         <a href="${link}" style="display:inline-block;padding:12px 24px;font-family:${FONT_STACK};font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:12px;">${label}</a>
@@ -45,7 +45,7 @@ function button(link: string, label: string): string {
 export function passwordResetEmail({ link }: { link: string }): string {
   return layout(
     "Recupera tu contraseña",
-    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;">
+    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;text-align:center;">
       Pediste restablecer tu contraseña en Nexo. El enlace caduca en 1 hora.
       Si no fuiste tú, ignora este email: tu contraseña seguirá siendo la misma.
     </p>
@@ -70,7 +70,7 @@ export function grupoInviteEmail({
     : `<strong>${inviterName}</strong> te invitó al grupo <strong>${grupoName}</strong> en Nexo para compartir gastos.`;
   return layout(
     "Te han invitado a un grupo",
-    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;">
+    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;text-align:center;">
       ${intro}
     </p>
     ${button(link, needsAccount ? "Crear cuenta y unirme" : "Ver invitación")}`,
@@ -94,7 +94,7 @@ export function grupoGastoEmail({
 }): string {
   return layout(
     "Nuevo gasto compartido",
-    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;">
+    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;text-align:center;">
       <strong>${payerName}</strong> registró un gasto de <strong>${amount.toFixed(2)} €</strong>
       (${description}) en el grupo <strong>${grupoName}</strong>. Tu parte es de
       <strong>${share.toFixed(2)} €</strong>.
