@@ -12,6 +12,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -80,7 +81,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           <Input
             id="confirm"
             name="confirm"
-            type={showPassword ? "text" : "password"}
+            type={showConfirm ? "text" : "password"}
             autoComplete="new-password"
             required
             minLength={8}
@@ -88,12 +89,12 @@ export function ResetPasswordForm({ token }: { token: string }) {
           />
           <button
             type="button"
-            onClick={() => setShowPassword((v) => !v)}
+            onClick={() => setShowConfirm((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             tabIndex={-1}
-            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            aria-label={showConfirm ? "Ocultar contraseña" : "Mostrar contraseña"}
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>

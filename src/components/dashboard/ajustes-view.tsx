@@ -26,7 +26,9 @@ export function AjustesView({ notificationPrefs }: { notificationPrefs: Notifica
 
 function PasswordSection() {
   const [loading, setLoading] = React.useState(false);
-  const [showPassword, setShowPassword] = React.useState(false);
+  const [showCurrent, setShowCurrent] = React.useState(false);
+  const [showNew, setShowNew] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -66,19 +68,19 @@ function PasswordSection() {
             <Input
               id="currentPassword"
               name="currentPassword"
-              type={showPassword ? "text" : "password"}
+              type={showCurrent ? "text" : "password"}
               autoComplete="current-password"
               required
               className="pr-10"
             />
             <button
               type="button"
-              onClick={() => setShowPassword((v) => !v)}
+              onClick={() => setShowCurrent((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               tabIndex={-1}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={showCurrent ? "Ocultar contraseña" : "Mostrar contraseña"}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -88,7 +90,7 @@ function PasswordSection() {
             <Input
               id="newPassword"
               name="newPassword"
-              type={showPassword ? "text" : "password"}
+              type={showNew ? "text" : "password"}
               autoComplete="new-password"
               required
               minLength={8}
@@ -96,12 +98,12 @@ function PasswordSection() {
             />
             <button
               type="button"
-              onClick={() => setShowPassword((v) => !v)}
+              onClick={() => setShowNew((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               tabIndex={-1}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={showNew ? "Ocultar contraseña" : "Mostrar contraseña"}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -111,7 +113,7 @@ function PasswordSection() {
             <Input
               id="confirmPassword"
               name="confirmPassword"
-              type={showPassword ? "text" : "password"}
+              type={showConfirm ? "text" : "password"}
               autoComplete="new-password"
               required
               minLength={8}
@@ -119,12 +121,12 @@ function PasswordSection() {
             />
             <button
               type="button"
-              onClick={() => setShowPassword((v) => !v)}
+              onClick={() => setShowConfirm((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               tabIndex={-1}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={showConfirm ? "Ocultar contraseña" : "Mostrar contraseña"}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
