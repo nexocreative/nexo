@@ -7,9 +7,22 @@ import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, Trending
 import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import { ImportarSection } from "@/components/dashboard/import-section";
-import { createTransaction, createIncome } from "@/app/dashboard/actions";
+import { createTransaction, createIncome, type BudgetAlert } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Muestra un toast por cada umbral de presupuesto recién cruzado al guardar un gasto. */
+function notifyBudgetAlerts(alerts?: BudgetAlert[]) {
+  for (const a of alerts ?? []) {
+    if (a.state === "blocked") {
+      toast.error(`Has superado el límite de ${a.label} (${a.pct}%)`);
+    } else if (a.state === "alert") {
+      toast.warning(`¡Atención! Vas por el ${a.pct}% de ${a.label}`);
+    } else {
+      toast.warning(`Aviso: ${a.pct}% de ${a.label}`);
+    }
+  }
+}
 
 type ExpenseMethod = "photo" | "voice" | "manual";
 type IncomeMethod = "voice" | "manual";
@@ -183,8 +196,11 @@ function GastosSection() {
       receipt_url: receiptPath,
     });
     setPending(false);
-    if (res.ok) { toast.success("Gasto registrado"); router.push("/dashboard/movimientos"); }
-    else toast.error(res.error);
+    if (res.ok) {
+      toast.success("Gasto registrado");
+      notifyBudgetAlerts(res.alerts);
+      router.push("/dashboard/movimientos");
+    } else toast.error(res.error);
   }
 
   const showCapture = method !== "manual" && !detected;

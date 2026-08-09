@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Pencil, Plus, AlertTriangle, Ban, Bell } from "lucide-react";
+import { Check, Pencil, Plus, AlertTriangle, Ban, Bell, Info } from "lucide-react";
 import { setGlobalBudget, upsertCategoryLimit } from "@/app/dashboard/actions";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatEUR } from "@/lib/format";
 import { STATE_COLOR, type BudgetState } from "@/lib/constants";
 
@@ -22,41 +23,40 @@ export function LimitsManager({
   unconfigured: Cat[];
 }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        <GlobalCard global={global} />
+    <div className="flex min-w-0 flex-col gap-6">
+      <GlobalCard global={global} />
 
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <h3 className="text-base font-bold text-foreground">Límites por categoría</h3>
-          <p className="text-sm text-muted-foreground">Define cuánto quieres gastar como máximo en cada una.</p>
-          <ul className="mt-5 space-y-5">
-            {categories.map((r) => (
-              <CategoryLimitRow key={r.cat.key} row={r} />
-            ))}
-          </ul>
+      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-bold text-foreground">Límites por categoría</h3>
+            <p className="text-sm text-muted-foreground">Define cuánto quieres gastar como máximo en cada una.</p>
+          </div>
+          <AlertsInfo />
+        </div>
+        <ul className="mt-5 space-y-5">
+          {categories.map((r) => (
+            <CategoryLimitRow key={r.cat.key} row={r} />
+          ))}
+        </ul>
 
-          {unconfigured.length > 0 && (
-            <div className="mt-6 border-t border-border/60 pt-5">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Sin límite todavía
-              </p>
-              <div className="space-y-3">
-                {unconfigured.map((c) => (
-                  <CategoryLimitRow
-                    key={c.key}
-                    row={{ cat: c, limit: 0, spent: 0, pct: 0, state: "ok" }}
-                    isNew
-                  />
-                ))}
-              </div>
+        {unconfigured.length > 0 && (
+          <div className="mt-6 border-t border-border/60 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Sin límite todavía
+            </p>
+            <div className="grid gap-x-8 gap-y-3 lg:grid-cols-2">
+              {unconfigured.map((c) => (
+                <CategoryLimitRow
+                  key={c.key}
+                  row={{ cat: c, limit: 0, spent: 0, pct: 0, state: "ok" }}
+                  isNew
+                />
+              ))}
             </div>
-          )}
-        </section>
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-6">
-        <AlertsLegend />
-      </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -167,13 +167,13 @@ function CategoryLimitRow({ row, isNew = false }: { row: Row; isNew?: boolean })
 
   return (
     <li className="list-none">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground"><CategoryIcon category={row.cat.key} className="h-4 w-4" /></span>
           {row.cat.label}
         </span>
         {!editing ? (
-          <span className="flex items-center gap-2 text-sm">
+          <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm">
             <span className="font-semibold text-foreground">{formatEUR(row.spent)}</span>
             <span className="text-muted-foreground">/ {formatEUR(row.limit)}</span>
             <button onClick={() => setEditing(true)} className="ml-1 text-muted-foreground hover:text-foreground">
@@ -207,35 +207,39 @@ function CategoryLimitRow({ row, isNew = false }: { row: Row; isNew?: boolean })
   );
 }
 
-function AlertsLegend() {
+function AlertsInfo() {
   const items = [
     { icon: Bell, color: STATE_COLOR.warning, title: "Aviso al 75%", desc: "Toast suave para que estés al tanto." },
     { icon: AlertTriangle, color: STATE_COLOR.alert, title: "Alerta al 90%", desc: "Card destacada en el dashboard." },
-    { icon: Ban, color: STATE_COLOR.blocked, title: "Bloqueo al 100%", desc: "Aviso visual de límite superado." },
+    { icon: Ban, color: STATE_COLOR.blocked, title: "100% superado", desc: "Aviso visual — no bloquea el gasto, sigues pudiendo registrarlo." },
   ];
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-      <h3 className="text-base font-bold text-foreground">Alertas progresivas</h3>
-      <p className="text-sm text-muted-foreground">Nexo te avisa según te acercas al límite.</p>
-      <ul className="mt-5 space-y-4">
-        {items.map((it) => (
-          <li key={it.title} className="flex items-start gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${it.color}22`, color: it.color }}>
-              <it.icon className="h-[18px] w-[18px]" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-foreground">{it.title}</p>
-              <p className="text-xs text-muted-foreground">{it.desc}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-5 rounded-2xl bg-accent/60 p-4">
-        <p className="text-xs font-semibold text-primary">💡 Recomendación IA</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Las recomendaciones basadas en tus patrones (Claude API) aparecerán aquí comparando con meses anteriores.
-        </p>
-      </div>
-    </section>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Cómo funcionan las alertas progresivas"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 rounded-2xl">
+        <p className="text-sm font-bold text-foreground">Alertas progresivas</p>
+        <p className="text-xs text-muted-foreground">Nexo te avisa según te acercas al límite.</p>
+        <ul className="mt-4 space-y-3">
+          {items.map((it) => (
+            <li key={it.title} className="flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${it.color}22`, color: it.color }}>
+                <it.icon className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{it.title}</p>
+                <p className="text-xs text-muted-foreground">{it.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }

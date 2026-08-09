@@ -5,6 +5,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireUserId, getPartnerState, materializeRecurring } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
+import { budgetState, crossedThreshold, getCategory, type BudgetState } from "@/lib/constants";
 import { sendEmail } from "@/lib/email/send";
 import { grupoInviteEmail, grupoGastoEmail } from "@/lib/email/templates";
 
@@ -27,6 +28,14 @@ const CATEGORY_KEYS = [
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+/** Aviso de que un gasto acaba de cruzar un umbral de presupuesto (75/90/100%). */
+export interface BudgetAlert {
+  scope: "global" | "category";
+  label: string;
+  pct: number;
+  state: BudgetState;
+}
+
 // --- Añadir movimiento (gasto o ingreso) -----------------------------------
 
 const txSchema = z.object({
@@ -42,13 +51,66 @@ const txSchema = z.object({
   ai_confidence: z.coerce.number().min(0).max(1).nullable().optional(),
 });
 
-export async function createTransaction(input: unknown): Promise<ActionResult> {
+export async function createTransaction(input: unknown): Promise<ActionResult & { alerts?: BudgetAlert[] }> {
   const userId = await requireUserId();
   const parsed = txSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const d = parsed.data;
+
+  const alerts: BudgetAlert[] = [];
+
+  // Los límites (global, por categoría) solo aplican a gastos.
+  if (d.type === "expense" && !d.vacation_id) {
+    const category = d.category ?? "otros";
+    const [{ data: profile }, { data: catBudget }] = await Promise.all([
+      supabaseAdmin().from("profiles").select("monthly_budget").eq("id", userId).maybeSingle(),
+      supabaseAdmin()
+        .from("category_budgets")
+        .select("monthly_limit")
+        .eq("user_id", userId)
+        .eq("category", category)
+        .maybeSingle(),
+    ]);
+
+    const globalLimit = profile?.monthly_budget ? Number(profile.monthly_budget) : null;
+    const catLimit = catBudget?.monthly_limit ? Number(catBudget.monthly_limit) : null;
+
+    if (globalLimit || catLimit) {
+      const { start, end } = currentMonthRange();
+      const { data: tx } = await supabaseAdmin()
+        .from("transactions")
+        .select("amount, category")
+        .eq("user_id", userId)
+        .eq("type", "expense")
+        .is("vacation_id", null)
+        .gte("occurred_at", start)
+        .lte("occurred_at", end);
+      const expenses = (tx as { amount: number; category: string | null }[]) ?? [];
+
+      if (globalLimit) {
+        const spentBefore = expenses.reduce((a, e) => a + Number(e.amount), 0);
+        const spentAfter = spentBefore + d.amount;
+        const before = budgetState(spentBefore, globalLimit);
+        const after = budgetState(spentAfter, globalLimit);
+        if (crossedThreshold(before, after)) {
+          alerts.push({ scope: "global", label: "tu presupuesto global", pct: Math.round((spentAfter / globalLimit) * 100), state: after });
+        }
+      }
+
+      if (catLimit) {
+        const spentBefore = expenses.filter((e) => e.category === category).reduce((a, e) => a + Number(e.amount), 0);
+        const spentAfter = spentBefore + d.amount;
+        const before = budgetState(spentBefore, catLimit);
+        const after = budgetState(spentAfter, catLimit);
+        if (crossedThreshold(before, after)) {
+          alerts.push({ scope: "category", label: getCategory(category).label, pct: Math.round((spentAfter / catLimit) * 100), state: after });
+        }
+      }
+    }
+  }
+
   const { error } = await supabaseAdmin().from("transactions").insert({
     user_id: userId,
     type: d.type,
@@ -64,7 +126,7 @@ export async function createTransaction(input: unknown): Promise<ActionResult> {
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard", "layout");
-  return { ok: true };
+  return { ok: true, alerts: alerts.length ? alerts : undefined };
 }
 
 // --- Importar movimientos en bloque (extracto bancario) --------------------

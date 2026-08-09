@@ -92,6 +92,14 @@ export function budgetState(spent: number, limit: number): BudgetState {
   return "ok";
 }
 
+/** Orden de severidad de los estados, para detectar cuándo se acaba de cruzar un umbral. */
+const STATE_SEVERITY: Record<BudgetState, number> = { ok: 0, warning: 1, alert: 2, blocked: 3 };
+
+/** true si `after` representa un cruce de umbral hacia arriba respecto a `before`. */
+export function crossedThreshold(before: BudgetState, after: BudgetState): boolean {
+  return STATE_SEVERITY[after] > STATE_SEVERITY[before];
+}
+
 /** Color (familia melocotón/lila) según el estado del presupuesto. */
 export const STATE_COLOR: Record<BudgetState, string> = {
   ok: PALETTE.lila,
