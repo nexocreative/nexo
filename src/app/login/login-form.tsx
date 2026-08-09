@@ -85,117 +85,145 @@ export function LoginForm({
     router.refresh();
   }
 
+  async function handleGoogle() {
+    setLoading(true);
+    await signIn("google", { callbackUrl: target });
+  }
+
   return (
-    <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="login">Entrar</TabsTrigger>
-        <TabsTrigger value="register">Crear cuenta</TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={handleGoogle}
+        disabled={loading}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logos/google.svg" alt="" className="mr-2 h-4 w-4" />
+        Continuar con Google
+      </Button>
 
-      <TabsContent value="login">
-        <form onSubmit={handleLogin} className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label htmlFor="login-email">Email</Label>
-            <Input
-              id="login-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="tu@email.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="login-password">Contraseña</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-            <div className="relative">
-              <Input
-                id="login-password"
-                name="password"
-                type={showLoginPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowLoginPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-                aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              >
-                {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Entrar
-          </Button>
-        </form>
-      </TabsContent>
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">o</span>
+        </div>
+      </div>
 
-      <TabsContent value="register">
-        <form onSubmit={handleRegister} className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label htmlFor="reg-name">Nombre</Label>
-            <Input
-              id="reg-name"
-              name="name"
-              type="text"
-              autoComplete="name"
-              placeholder="Tu nombre"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="reg-email">Email</Label>
-            <Input
-              id="reg-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="tu@email.com"
-              defaultValue={defaultEmail}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="reg-password">Contraseña</Label>
-            <div className="relative">
+      <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="login">Entrar</TabsTrigger>
+          <TabsTrigger value="register">Crear cuenta</TabsTrigger>
+        </TabsList>
+  
+        <TabsContent value="login">
+          <form onSubmit={handleLogin} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
               <Input
-                id="reg-password"
-                name="password"
-                type={showRegisterPassword ? "text" : "password"}
-                autoComplete="new-password"
+                id="login-email"
+                name="email"
+                type="email"
+                autoComplete="email"
                 required
-                minLength={8}
-                placeholder="Mínimo 8 caracteres"
-                className="pr-10"
+                placeholder="tu@email.com"
               />
-              <button
-                type="button"
-                onClick={() => setShowRegisterPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-                aria-label={showRegisterPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              >
-                {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
             </div>
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Crear cuenta
-          </Button>
-        </form>
-      </TabsContent>
-    </Tabs>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="login-password">Contraseña</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
+              <div className="relative">
+                <Input
+                  id="login-password"
+                  name="password"
+                  type={showLoginPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Entrar
+            </Button>
+          </form>
+        </TabsContent>
+  
+        <TabsContent value="register">
+          <form onSubmit={handleRegister} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="reg-name">Nombre</Label>
+              <Input
+                id="reg-name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                placeholder="Tu nombre"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reg-email">Email</Label>
+              <Input
+                id="reg-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="tu@email.com"
+                defaultValue={defaultEmail}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reg-password">Contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="reg-password"
+                  name="password"
+                  type={showRegisterPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  placeholder="Mínimo 8 caracteres"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label={showRegisterPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Crear cuenta
+            </Button>
+          </form>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

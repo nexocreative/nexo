@@ -1,17 +1,33 @@
 import "server-only";
 import { type NextAuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import { SupabaseAdapter } from "@next-auth/supabase-adapter";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { isLoginThrottled, recordLoginAttempt } from "@/lib/rate-limit";
 
 export const authOptions: NextAuthOptions = {
+  // Solo se usa para que Google persista usuarios/cuentas en next_auth.*;
+  // las credenciales por email siguen gestionándose a mano en `authorize`.
+  adapter: SupabaseAdapter({
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  }),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
   },
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // Permite enlazar la cuenta de Google a un usuario "fantasma" (creado
+      // al invitarlo a un grupo antes de tener cuenta) con el mismo email.
+      // Seguro aquí porque Google siempre verifica el email.
+      allowDangerousEmailAccountLinking: true,
+    }),
     CredentialsProvider({
       name: "Email y contraseña",
       credentials: {
@@ -50,6 +66,40 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Alta con Google: asegura el perfil (public.profiles) igual que hace
+      // /api/register para las cuentas por contraseña, y completa el nombre
+      // si el usuario era un registro "fantasma" (invitado sin cuenta).
+      if (account?.provider === "google" && user.id) {
+        const admin = supabaseAdmin();
+        const googleName = (profile as { name?: string } | undefined)?.name;
+
+        if (googleName) {
+          await admin
+            .schema("next_auth")
+            .from("users")
+            .update({ name: googleName })
+            .eq("id", user.id)
+            .is("name", null);
+        }
+
+        const { data: existingProfile } = await admin
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!existingProfile) {
+          const { error } = await admin.from("profiles").insert({
+            id: user.id,
+            display_name: googleName ?? user.email?.split("@")[0] ?? "Usuario",
+            currency: "EUR",
+          });
+          if (error) console.error("Error creando perfil (Google):", error);
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
