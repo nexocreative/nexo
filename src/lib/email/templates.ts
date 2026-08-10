@@ -77,6 +77,17 @@ export function grupoInviteEmail({
   );
 }
 
+export function nexoPlusActivatedEmail({ link }: { link: string }): string {
+  return layout(
+    "¡Bienvenida a Nexo Plus! ✨",
+    `<p style="font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#44415A;margin:0;text-align:center;">
+      Tu suscripción ya está activa. Desde ahora tienes escaneo de tickets, notas de voz e
+      importación de extractos con IA, historial completo y grupos, vacaciones y ahorro sin límite.
+    </p>
+    ${button(link, "Ir a Nexo")}`,
+  );
+}
+
 export function grupoGastoEmail({
   grupoName,
   payerName,
