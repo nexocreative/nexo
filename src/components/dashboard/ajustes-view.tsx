@@ -1,26 +1,73 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
 import { changePassword, updateNotificationPrefs } from "@/app/dashboard/settings-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PALETTE } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 
 interface NotificationPrefs {
   grupo_invite: boolean;
   grupo_gasto: boolean;
 }
 
-export function AjustesView({ notificationPrefs }: { notificationPrefs: NotificationPrefs }) {
+export function AjustesView({
+  notificationPrefs,
+  plan,
+  currentPeriodEnd,
+}: {
+  notificationPrefs: NotificationPrefs;
+  plan: "free" | "plus";
+  currentPeriodEnd: string | null;
+}) {
   return (
     <div className="space-y-6 pt-4">
+      <PlanSection plan={plan} currentPeriodEnd={currentPeriodEnd} />
       <PasswordSection />
       <NotificationsSection initial={notificationPrefs} />
     </div>
+  );
+}
+
+function PlanSection({ plan, currentPeriodEnd }: { plan: "free" | "plus"; currentPeriodEnd: string | null }) {
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}
+          >
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="text-base font-bold text-foreground">
+              {plan === "plus" ? "Nexo Plus" : "Plan gratuito"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {plan === "plus"
+                ? currentPeriodEnd
+                  ? `Se renueva el ${formatDate(currentPeriodEnd.slice(0, 10))}`
+                  : "Tu suscripción está activa"
+                : "Sin funciones de IA, historial limitado a 3 meses"}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/plus"
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-primary/90"
+        >
+          {plan === "plus" ? "Gestionar suscripción" : "Hazte Plus"}
+        </Link>
+      </div>
+    </section>
   );
 }
 
