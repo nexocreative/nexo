@@ -5,6 +5,7 @@ import { getOpenAI, VISION_MODEL } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { checkAndRecordRateLimit } from "@/lib/rate-limit";
 import { CATEGORIES } from "@/lib/constants";
+import { requirePlusForAi } from "@/lib/billing";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -71,6 +72,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
   const userId = session.user.id;
+
+  const gate = await requirePlusForAi(userId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error, upgradeRequired: true }, { status: gate.status });
+  }
 
   let file: File | null = null;
   try {

@@ -8,6 +8,7 @@ import { monthKey } from "@/lib/format";
 import { budgetState, crossedThreshold, getCategory, type BudgetState } from "@/lib/constants";
 import { sendEmail } from "@/lib/email/send";
 import { grupoInviteEmail, grupoGastoEmail } from "@/lib/email/templates";
+import { assertUnderLimit } from "@/lib/billing";
 
 /** Rango ISO [primer día, último día] del mes en curso (componentes locales). */
 function currentMonthRange() {
@@ -26,7 +27,7 @@ const CATEGORY_KEYS = [
   "salud", "hogar", "ropa", "vacaciones", "otros",
 ] as const;
 
-export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ActionResult = { ok: true } | { ok: false; error: string; upgradeRequired?: boolean };
 
 /** Aviso de que un gasto acaba de cruzar un umbral de presupuesto (75/90/100%). */
 export interface BudgetAlert {
@@ -410,6 +411,8 @@ export async function createSavingsCategory(input: unknown): Promise<ActionResul
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
+  const limit = await assertUnderLimit(userId, "ahorro");
+  if (!limit.ok) return { ok: false, error: limit.error, upgradeRequired: true };
   const d = parsed.data;
   // Coloca la nueva al final.
   const { data: last } = await supabaseAdmin()
@@ -659,6 +662,8 @@ export async function startVacation(input: {
   const userId = await requireUserId();
   const name = input.name?.trim();
   if (!name) return { ok: false, error: "El nombre es obligatorio" };
+  const limit = await assertUnderLimit(userId, "vacaciones");
+  if (!limit.ok) return { ok: false, error: limit.error, upgradeRequired: true };
   const { error } = await supabaseAdmin().from("vacation_periods").insert({
     user_id: userId,
     name,
@@ -921,6 +926,8 @@ export async function createGrupo(name: string): Promise<ActionResult & { id?: s
   const userId = await requireUserId();
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 80) return { ok: false, error: "Nombre inválido" };
+  const limit = await assertUnderLimit(userId, "grupos");
+  if (!limit.ok) return { ok: false, error: limit.error, upgradeRequired: true };
 
   const { data: grupo, error: e1 } = await supabaseAdmin()
     .from("grupos")

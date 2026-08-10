@@ -27,6 +27,7 @@ import {
   type BudgetState,
 } from "@/lib/constants";
 import { monthShort, monthKey } from "@/lib/format";
+import { FREE_LIMITS, PLUS_HISTORY_MONTHS, type Plan } from "@/lib/billing";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -362,12 +363,15 @@ export interface MovementsData {
 
 export async function getMovements(
   userId: string,
-  opts?: { month?: string; type?: "all" | "expense" | "income"; category?: string },
+  opts?: { month?: string; type?: "all" | "expense" | "income"; category?: string; plan?: Plan },
 ): Promise<MovementsData> {
+  const historyMonths = opts?.plan === "plus" ? PLUS_HISTORY_MONTHS : FREE_LIMITS.historyMonths;
   const now = new Date();
-  const monthDate = opts?.month
+  const oldestAllowed = startOfMonth(subMonths(startOfMonth(now), historyMonths - 1));
+  let monthDate = opts?.month
     ? new Date(`${opts.month}-01T00:00:00`)
     : startOfMonth(now);
+  if (monthDate < oldestAllowed) monthDate = oldestAllowed;
   const start = isoDate(startOfMonth(monthDate));
   const end = isoDate(endOfMonth(monthDate));
 
@@ -450,7 +454,7 @@ export async function getMovements(
     }
   }
 
-  const monthOptions = Array.from({ length: 6 }, (_, i) => {
+  const monthOptions = Array.from({ length: historyMonths }, (_, i) => {
     const d = subMonths(startOfMonth(now), i);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     return { value, label: `${monthShort(d)} ${d.getFullYear()}` };
@@ -545,9 +549,10 @@ export interface ChartsData {
   projection: { current: number; projected: number; budget: number | null };
 }
 
-export async function getCharts(userId: string): Promise<ChartsData> {
+export async function getCharts(userId: string, plan: Plan = "free"): Promise<ChartsData> {
   const now = new Date();
-  const from = isoDate(startOfMonth(subMonths(now, 11)));
+  const monthsBack = plan === "plus" ? 12 : FREE_LIMITS.historyMonths;
+  const from = isoDate(startOfMonth(subMonths(now, monthsBack - 1)));
 
   const [{ data: tx }, profile] = await Promise.all([
     supabaseAdmin()
@@ -560,14 +565,14 @@ export async function getCharts(userId: string): Promise<ChartsData> {
   ]);
   const all = (tx as Transaction[]) ?? [];
 
-  const monthBuckets: { date: Date; key: string }[] = Array.from({ length: 12 }, (_, i) => {
-    const d = subMonths(startOfMonth(now), 11 - i);
+  const monthBuckets: { date: Date; key: string }[] = Array.from({ length: monthsBack }, (_, i) => {
+    const d = subMonths(startOfMonth(now), monthsBack - 1 - i);
     return { date: d, key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
   });
 
   const keyOf = (iso: string) => iso.slice(0, 7);
 
-  const bars = monthBuckets.slice(6).map(({ date, key }) => {
+  const bars = monthBuckets.slice(Math.max(0, monthBuckets.length - 6)).map(({ date, key }) => {
     const inM = all.filter((t) => keyOf(t.occurred_at) === key);
     return {
       month: monthShort(date),
