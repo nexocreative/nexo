@@ -8,6 +8,7 @@ import { CATEGORIES, PALETTE } from "@/lib/constants";
 import { createTransactionsBulk } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { upgradeToast } from "@/lib/upgrade-toast";
 
 interface ApiRow {
   fila: number;
@@ -70,7 +71,11 @@ export function ImportarSection() {
       fd.append("file", file);
       const res = await fetch("/api/import", { method: "POST", body: fd });
       const json = await res.json();
-      if (!res.ok) { toast.error(json.error ?? "No se pudo analizar el extracto"); return; }
+      if (!res.ok) {
+        if (json.upgradeRequired) upgradeToast(json.error, router);
+        else toast.error(json.error ?? "No se pudo analizar el extracto");
+        return;
+      }
       const parsed: ImportRow[] = (json.rows as ApiRow[]).map((r) => ({
         fila: r.fila,
         fecha: r.fecha ?? "",

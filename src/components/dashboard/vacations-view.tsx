@@ -14,6 +14,7 @@ import {
 import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense, renameVacation } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
+import { upgradeToast } from "@/lib/upgrade-toast";
 
 interface ExpenseRow {
   id: string;
@@ -772,7 +773,8 @@ function StartCard() {
       setBudget("");
       setEndDate("");
       router.refresh();
-    } else toast.error(res.error);
+    } else if (res.upgradeRequired) upgradeToast(res.error, router);
+    else toast.error(res.error);
   }
 
   return (

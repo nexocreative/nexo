@@ -10,6 +10,7 @@ import { ImportarSection } from "@/components/dashboard/import-section";
 import { createTransaction, createIncome, type BudgetAlert } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { upgradeToast } from "@/lib/upgrade-toast";
 
 /** Muestra un toast por cada umbral de presupuesto recién cruzado al guardar un gasto. */
 function notifyBudgetAlerts(alerts?: BudgetAlert[]) {
@@ -132,7 +133,11 @@ function GastosSection() {
       fd.append("file", file);
       const res = await fetch("/api/ticket", { method: "POST", body: fd });
       const json = await res.json();
-      if (!res.ok) { toast.error(json.error ?? "No se pudo analizar el ticket"); return; }
+      if (!res.ok) {
+        if (json.upgradeRequired) upgradeToast(json.error, router);
+        else toast.error(json.error ?? "No se pudo analizar el ticket");
+        return;
+      }
       const d = json.data;
       if (d.comercio) setMerchant(d.comercio);
       if (d.importe) setAmount(String(d.importe));
@@ -171,7 +176,11 @@ function GastosSection() {
       fd.append("file", blob, "audio.webm");
       const res = await fetch("/api/voice", { method: "POST", body: fd });
       const json = await res.json();
-      if (!res.ok) { toast.error(json.error ?? "No se pudo procesar la voz"); return; }
+      if (!res.ok) {
+        if (json.upgradeRequired) upgradeToast(json.error, router);
+        else toast.error(json.error ?? "No se pudo procesar la voz");
+        return;
+      }
       const d = json.data;
       if (d.comercio) setMerchant(d.comercio);
       if (d.importe) setAmount(String(d.importe));
@@ -434,7 +443,11 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
       fd.append("file", blob, "audio.webm");
       const res = await fetch("/api/voice", { method: "POST", body: fd });
       const json = await res.json();
-      if (!res.ok) { toast.error(json.error ?? "No se pudo procesar la voz"); return; }
+      if (!res.ok) {
+        if (json.upgradeRequired) upgradeToast(json.error, router);
+        else toast.error(json.error ?? "No se pudo procesar la voz");
+        return;
+      }
       const d = json.data;
       if (d.comercio) setDescription(d.comercio);
       if (d.importe) setAmount(String(d.importe));

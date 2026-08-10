@@ -30,6 +30,7 @@ import {
   createTransaction,
 } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
+import { upgradeToast } from "@/lib/upgrade-toast";
 import type { GruposData, GrupoConDetalle } from "@/types/database";
 
 interface Props {
@@ -785,6 +786,8 @@ export function JuntosView({ data, currentUserId }: Props) {
       setShowCreate(false);
       router.refresh();
       if ("id" in res && res.id) setSelectedGrupoId(res.id);
+    } else if (res.upgradeRequired) {
+      upgradeToast(res.error, router);
     } else {
       toast.error(res.error);
     }

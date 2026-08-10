@@ -12,6 +12,7 @@ import {
   Users,
   Palmtree,
   PiggyBank,
+  Sparkles,
 } from "lucide-react";
 
 const links = [
@@ -23,6 +24,7 @@ const links = [
   { href: "/dashboard/graficas", label: "Gráficas", icon: BarChart3 },
   { href: "/dashboard/juntos", label: "En conjunto", icon: Users },
   { href: "/dashboard/vacaciones", label: "Vacaciones", icon: Palmtree },
+  { href: "/dashboard/plus", label: "Nexo Plus", icon: Sparkles },
 ];
 
 /** Contenido del nav, compartido entre el sidebar de escritorio y el drawer móvil. */

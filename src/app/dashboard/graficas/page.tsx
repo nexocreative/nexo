@@ -1,5 +1,7 @@
-import { TrendingDown, TrendingUp, Target } from "lucide-react";
+import Link from "next/link";
+import { TrendingDown, TrendingUp, Target, Sparkles } from "lucide-react";
 import { requireUserId, getCharts } from "@/lib/data/queries";
+import { getUserPlan, FREE_LIMITS } from "@/lib/billing";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { TrendLine } from "@/components/charts/trend-line";
@@ -8,13 +10,25 @@ import { PALETTE } from "@/lib/constants";
 
 export default async function GraficasPage() {
   const userId = await requireUserId();
-  const c = await getCharts(userId);
+  const plan = await getUserPlan(userId);
+  const c = await getCharts(userId, plan);
 
   const donutTotal = c.donut.reduce((a, d) => a + d.value, 0);
   const overBudget = c.projection.budget !== null && c.projection.projected > c.projection.budget;
+  const trendMonths = plan === "plus" ? 12 : FREE_LIMITS.historyMonths;
 
   return (
     <div className="space-y-6">
+      {plan === "free" && (
+        <Link
+          href="/dashboard/plus"
+          className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-accent/40 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
+        >
+          <Sparkles className="h-4 w-4 shrink-0" style={{ color: PALETTE.lilaInk }} />
+          Ves los últimos 3 meses en tus gráficas · Hazte Plus para ver los últimos 12 meses
+        </Link>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Barras ingresos vs gastos */}
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:col-span-2">
@@ -105,7 +119,7 @@ export default async function GraficasPage() {
 
         {/* Tendencia 12 meses */}
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:col-span-2">
-          <h3 className="text-base font-bold text-foreground">Tendencia 12 meses</h3>
+          <h3 className="text-base font-bold text-foreground">Tendencia {trendMonths} meses</h3>
           <p className="text-xs text-muted-foreground">Balance neto (ingresos − gastos)</p>
           <div className="mt-4">
             <TrendLine data={c.trend} />

@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, PiggyBank, Plus } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, PiggyBank, Plus, Sparkles } from "lucide-react";
 import { requireUserId, getMovements } from "@/lib/data/queries";
+import { getUserPlan } from "@/lib/billing";
 import { MovementsFilters } from "@/components/dashboard/movements-filters";
 import { MovementsList, type MovementRow } from "@/components/dashboard/movements-list";
 import { RecurringManager, type RecItem } from "@/components/dashboard/recurring-manager";
+import { ExportCsvButton } from "@/components/dashboard/export-csv-button";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 
@@ -13,10 +15,12 @@ export default async function MovimientosPage({
   searchParams: { month?: string; type?: string; category?: string };
 }) {
   const userId = await requireUserId();
+  const plan = await getUserPlan(userId);
   const data = await getMovements(userId, {
     month: searchParams.month,
     type: (searchParams.type as "all" | "expense" | "income") ?? "all",
     category: searchParams.category,
+    plan,
   });
 
   const txRows: MovementRow[] = data.transactions.map((t) => ({
@@ -67,7 +71,18 @@ export default async function MovimientosPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      {plan === "free" && (
+        <Link
+          href="/dashboard/plus"
+          className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-accent/40 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
+        >
+          <Sparkles className="h-4 w-4 shrink-0" style={{ color: PALETTE.lilaInk }} />
+          Ves los últimos 3 meses de historial · Hazte Plus para ver todo tu historial
+        </Link>
+      )}
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <ExportCsvButton rows={rows} plan={plan} />
         <Link
           href="/dashboard/anadir"
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-primary/90"

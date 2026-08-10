@@ -23,6 +23,7 @@ import { SavingsBars } from "@/components/charts/savings-bars";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { upgradeToast } from "@/lib/upgrade-toast";
 import {
   createSavingsCategory,
   updateSavingsCategory,
@@ -350,7 +351,8 @@ function CategoryDialog({ editing, onClose }: { editing: CatEditing; onClose: ()
       toast.success(item ? "Categoría actualizada" : "Categoría creada");
       onClose();
       router.refresh();
-    } else toast.error(res.error);
+    } else if (res.upgradeRequired) upgradeToast(res.error, router);
+    else toast.error(res.error);
   }
 
   async function remove() {
