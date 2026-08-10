@@ -58,7 +58,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Últimos movimientos (móvil: 2) */}
-      <section className="order-2 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none lg:col-span-2">
+      <section className="order-2 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none lg:col-span-2 lg:self-stretch">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">Últimos movimientos</h3>
           <Link href="/dashboard/movimientos" className="text-sm font-semibold text-primary hover:underline">
