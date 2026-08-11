@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerAuthSession } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { requireUserIdFromRequest } from "@/lib/mobile-auth";
 
 export const runtime = "nodejs";
 
@@ -9,11 +9,10 @@ export const runtime = "nodejs";
 const INTEGRATION_IDENTIFIER = "nexo_plus_qkxmvbdt";
 
 export async function POST(req: Request) {
-  const session = await getServerAuthSession();
-  if (!session?.user?.id) {
+  const userId = await requireUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
-  const userId = session.user.id;
 
   let plan: "monthly" | "annual" = "monthly";
   try {
@@ -38,8 +37,9 @@ export async function POST(req: Request) {
   const stripe = getStripe();
   let customerId = existing?.stripe_customer_id ?? null;
   if (!customerId) {
+    const { data: user } = await admin.schema("next_auth").from("users").select("email").eq("id", userId).maybeSingle();
     const customer = await stripe.customers.create({
-      email: session.user.email ?? undefined,
+      email: user?.email ?? undefined,
       metadata: { nexo_user_id: userId },
     });
     customerId = customer.id;

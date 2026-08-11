@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getServerAuthSession } from "@/lib/auth";
 import { getOpenAI, VISION_MODEL } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { checkAndRecordRateLimit } from "@/lib/rate-limit";
 import { requirePlusForAi } from "@/lib/billing";
+import { requireUserIdFromRequest } from "@/lib/mobile-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -49,11 +49,10 @@ function sanitizeTicketDate(value: unknown): string {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerAuthSession();
-  if (!session?.user?.id) {
+  const userId = await requireUserIdFromRequest(req);
+  if (!userId) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
-  const userId = session.user.id;
 
   const gate = await requirePlusForAi(userId);
   if (!gate.ok) {

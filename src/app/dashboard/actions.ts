@@ -9,6 +9,7 @@ import { budgetState, crossedThreshold, getCategory, type BudgetState } from "@/
 import { sendEmail } from "@/lib/email/send";
 import { grupoInviteEmail, grupoGastoEmail } from "@/lib/email/templates";
 import { assertUnderLimit } from "@/lib/billing";
+import { sendPushNotification } from "@/lib/push";
 
 /** Rango ISO [primer día, último día] del mes en curso (componentes locales). */
 function currentMonthRange() {
@@ -862,6 +863,14 @@ async function notifyGrupoInvite(params: {
       needsAccount: !params.hasAccount,
     }),
   });
+
+  if (params.hasAccount) {
+    await sendPushNotification(params.targetUserId, {
+      title: "Nueva invitación a un grupo",
+      body: `${inviter?.display_name ?? "Alguien"} te invitó a "${grupo?.name ?? "un grupo"}"`,
+      data: { type: "grupo_invite", grupoId: params.grupoId },
+    });
+  }
 }
 
 async function notifyGrupoGasto(params: {
@@ -888,21 +897,27 @@ async function notifyGrupoGasto(params: {
   const prefsById = new Map((profiles ?? []).map((p) => [p.id, p.notification_prefs]));
 
   await Promise.all(
-    recipients.map((p) => {
-      if (prefsById.get(p.user_id)?.grupo_gasto === false) return null;
+    recipients.map(async (p) => {
+      if (prefsById.get(p.user_id)?.grupo_gasto === false) return;
       const email = emailById.get(p.user_id);
-      if (!email) return null;
-      return sendEmail({
-        to: email,
-        subject: "Nuevo gasto compartido en Nexo",
-        html: grupoGastoEmail({
-          grupoName: grupo?.name ?? "tu grupo",
-          payerName: payerProfile?.display_name ?? "Alguien",
-          description: params.description,
-          amount: params.amount,
-          share: p.amount,
-          link: `${process.env.NEXTAUTH_URL}/dashboard/juntos`,
-        }),
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: "Nuevo gasto compartido en Nexo",
+          html: grupoGastoEmail({
+            grupoName: grupo?.name ?? "tu grupo",
+            payerName: payerProfile?.display_name ?? "Alguien",
+            description: params.description,
+            amount: params.amount,
+            share: p.amount,
+            link: `${process.env.NEXTAUTH_URL}/dashboard/juntos`,
+          }),
+        });
+      }
+      await sendPushNotification(p.user_id, {
+        title: "Nuevo gasto compartido",
+        body: `${payerProfile?.display_name ?? "Alguien"} añadió "${params.description}" en ${grupo?.name ?? "tu grupo"}`,
+        data: { type: "grupo_gasto", grupoId: params.grupoId },
       });
     }),
   );
