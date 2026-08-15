@@ -115,15 +115,20 @@ function GastosSection() {
   const fileRef = React.useRef<HTMLInputElement>(null);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
+  const mountedRef = React.useRef(true);
+  const previewUrlRef = React.useRef<string | null>(null);
 
   // Si el componente se desmonta (p.ej. se cambia de pestaña) a media grabación,
-  // libera el micrófono en vez de dejarlo "escuchando" en segundo plano.
+  // libera el micrófono en vez de dejarlo "escuchando" en segundo plano; y evita
+  // setState sobre un componente ya desmontado si la IA sigue analizando.
   React.useEffect(() => {
     return () => {
+      mountedRef.current = false;
       const mr = mediaRecorderRef.current;
       if (mr && mr.state !== "inactive") {
         mr.stream.getTracks().forEach((t) => t.stop());
       }
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
 
@@ -137,13 +142,17 @@ function GastosSection() {
   }
 
   async function analyzePhoto(file: File) {
-    setPreview(URL.createObjectURL(file));
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    const url = URL.createObjectURL(file);
+    previewUrlRef.current = url;
+    setPreview(url);
     setAnalyzing(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/ticket", { method: "POST", body: fd });
       const json = await res.json();
+      if (!mountedRef.current) return;
       if (!res.ok) {
         if (json.upgradeRequired) upgradeToast(json.error, router);
         else toast.error(json.error ?? "No se pudo analizar el ticket");
@@ -157,8 +166,11 @@ function GastosSection() {
       setReceiptPath(json.receiptPath ?? null);
       setDetected(true);
       toast.success("Ticket analizado con IA · revisa los datos");
-    } catch { toast.error("Error de conexión al analizar el ticket"); }
-    finally { setAnalyzing(false); }
+    } catch {
+      if (mountedRef.current) toast.error("Error de conexión al analizar el ticket");
+    } finally {
+      if (mountedRef.current) setAnalyzing(false);
+    }
   }
 
   async function startRecordingExpense() {
@@ -187,6 +199,7 @@ function GastosSection() {
       fd.append("file", blob, "audio.webm");
       const res = await fetch("/api/voice", { method: "POST", body: fd });
       const json = await res.json();
+      if (!mountedRef.current) return;
       if (!res.ok) {
         if (json.upgradeRequired) upgradeToast(json.error, router);
         else toast.error(json.error ?? "No se pudo procesar la voz");
@@ -199,8 +212,11 @@ function GastosSection() {
       if (d.fecha) setDate(d.fecha);
       setDetected(true);
       toast.success(`Entendido: "${json.transcript}"`);
-    } catch { toast.error("Error de conexión al procesar la voz"); }
-    finally { setAnalyzing(false); }
+    } catch {
+      if (mountedRef.current) toast.error("Error de conexión al procesar la voz");
+    } finally {
+      if (mountedRef.current) setAnalyzing(false);
+    }
   }
 
   async function confirm() {
@@ -401,7 +417,7 @@ function GastosSection() {
                 </p>
               </div>
               <button
-                disabled={pending}
+                disabled={pending || analyzing || !(Number(amount) > 0)}
                 onClick={confirm}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 disabled:opacity-60"
               >
@@ -429,11 +445,14 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
   const [recording, setRecording] = React.useState(false);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
+  const mountedRef = React.useRef(true);
 
   // Si el componente se desmonta (p.ej. se cambia de pestaña) a media grabación,
-  // libera el micrófono en vez de dejarlo "escuchando" en segundo plano.
+  // libera el micrófono en vez de dejarlo "escuchando" en segundo plano; y evita
+  // setState sobre un componente ya desmontado si la IA sigue analizando.
   React.useEffect(() => {
     return () => {
+      mountedRef.current = false;
       const mr = mediaRecorderRef.current;
       if (mr && mr.state !== "inactive") {
         mr.stream.getTracks().forEach((t) => t.stop());
@@ -474,6 +493,7 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
       fd.append("file", blob, "audio.webm");
       const res = await fetch("/api/voice", { method: "POST", body: fd });
       const json = await res.json();
+      if (!mountedRef.current) return;
       if (!res.ok) {
         if (json.upgradeRequired) upgradeToast(json.error, router);
         else toast.error(json.error ?? "No se pudo procesar la voz");
@@ -485,8 +505,11 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
       if (d.fecha) setDate(d.fecha);
       setDetected(true);
       toast.success(`Entendido: "${json.transcript}"`);
-    } catch { toast.error("Error de conexión al procesar la voz"); }
-    finally { setAnalyzing(false); }
+    } catch {
+      if (mountedRef.current) toast.error("Error de conexión al procesar la voz");
+    } finally {
+      if (mountedRef.current) setAnalyzing(false);
+    }
   }
 
   const finalCategory = category === NEW_CATEGORY ? newCategory.trim() : category;
@@ -667,7 +690,7 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
                 <p className="mt-1 text-sm font-bold text-foreground">{finalCategory || "—"}</p>
               </div>
               <button
-                disabled={pending}
+                disabled={pending || analyzing}
                 onClick={confirm}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5 disabled:opacity-60"
               >
