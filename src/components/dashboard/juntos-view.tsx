@@ -131,14 +131,28 @@ function GrupoDetail({
 
   // Form state para añadir gasto
   const acceptedMembers = grupo.members.filter((m) => m.status === "accepted");
+  const acceptedIds = acceptedMembers.map((m) => m.user_id);
+  const acceptedIdsKey = acceptedIds.join(",");
   const [gastoDesc, setGastoDesc] = React.useState("");
   const [gastoAmount, setGastoAmount] = React.useState("");
   const [gastoDate, setGastoDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [gastoPaidBy, setGastoPaidBy] = React.useState(currentUserId);
-  const [gastoParticipants, setGastoParticipants] = React.useState<string[]>(
-    acceptedMembers.map((m) => m.user_id),
-  );
+  const [gastoParticipants, setGastoParticipants] = React.useState<string[]>(acceptedIds);
   const [addingGasto, setAddingGasto] = React.useState(false);
+
+  // Si se acepta un nuevo miembro (o alguien deja el grupo) mientras el
+  // formulario de gasto sigue abierto, se resincroniza la lista de
+  // participantes: se añaden los nuevos y se quitan los que ya no están,
+  // conservando lo que la usuaria haya marcado/desmarcado a mano.
+  React.useEffect(() => {
+    setGastoParticipants((prev) => {
+      const stillValid = prev.filter((id) => acceptedIds.includes(id));
+      const newIds = acceptedIds.filter((id) => !prev.includes(id));
+      if (newIds.length === 0 && stillValid.length === prev.length) return prev;
+      return [...stillValid, ...newIds];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptedIdsKey]);
 
   const toggleParticipant = (uid: string) => {
     setGastoParticipants((prev) =>
@@ -167,7 +181,10 @@ function GrupoDetail({
   }
 
   async function handleAddGasto() {
-    if (!gastoDesc.trim() || !gastoAmount || gastoParticipants.length === 0) return;
+    if (!gastoDesc.trim() || gastoParticipants.length === 0) return;
+    // El input tiene min="0.01", pero al no ir dentro de un <form> con submit
+    // esa validación nativa no se aplica: se comprueba aquí a mano.
+    if (!(Number(gastoAmount) > 0)) { toast.error("Indica un importe válido"); return; }
     setAddingGasto(true);
     try {
       const res = await addGrupoGasto({
@@ -570,7 +587,7 @@ function GrupoDetail({
               </button>
               <button
                 onClick={handleAddGasto}
-                disabled={addingGasto || !gastoDesc.trim() || !gastoAmount || gastoParticipants.length === 0}
+                disabled={addingGasto || !gastoDesc.trim() || !(Number(gastoAmount) > 0) || gastoParticipants.length === 0}
                 className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {addingGasto ? "Guardando..." : "Guardar"}
