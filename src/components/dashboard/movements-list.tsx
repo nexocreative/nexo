@@ -134,13 +134,18 @@ function Detail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
 
   async function remove() {
     setPending(true);
-    const res = row.type === "savings" ? await deleteSavingsEntry(row.id) : await deleteTransaction(row.id);
-    setPending(false);
-    if (res.ok) {
-      toast.success(row.type === "savings" ? "Aporte de ahorro eliminado" : "Movimiento eliminado");
-      onClose();
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = row.type === "savings" ? await deleteSavingsEntry(row.id) : await deleteTransaction(row.id);
+      if (res.ok) {
+        toast.success(row.type === "savings" ? "Aporte de ahorro eliminado" : "Movimiento eliminado");
+        onClose();
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al eliminar");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
