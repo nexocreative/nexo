@@ -663,12 +663,14 @@ export async function startVacation(input: {
   const userId = await requireUserId();
   const name = input.name?.trim();
   if (!name) return { ok: false, error: "El nombre es obligatorio" };
+  const budget = Number(input.budget) || 0;
+  if (!(budget >= 0)) return { ok: false, error: "El presupuesto no puede ser negativo" };
   const limit = await assertUnderLimit(userId, "vacaciones");
   if (!limit.ok) return { ok: false, error: limit.error, upgradeRequired: true };
   const { error } = await supabaseAdmin().from("vacation_periods").insert({
     user_id: userId,
     name,
-    budget: Number(input.budget) || 0,
+    budget,
     start_date: input.start_date || new Date().toISOString().slice(0, 10),
     end_date: input.end_date || null,
     status: "active",

@@ -182,21 +182,31 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
   async function saveName() {
     if (!nameValue.trim() || nameValue.trim() === vac.name) { setEditingName(false); return; }
     setSavingName(true);
-    const res = await renameVacation(vac.id, nameValue);
-    setSavingName(false);
-    if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
-    else toast.error(res.error);
-    setEditingName(false);
+    try {
+      const res = await renameVacation(vac.id, nameValue);
+      if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setSavingName(false);
+      setEditingName(false);
+    }
   }
 
   async function close() {
     setPending(true);
-    const res = await closeVacation(vac.id);
-    setPending(false);
-    if (res.ok) {
-      toast.success("Viaje cerrado · total añadido a movimientos generales");
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await closeVacation(vac.id);
+      if (res.ok) {
+        toast.success("Viaje cerrado · total añadido a movimientos generales");
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al cerrar el viaje");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -395,21 +405,26 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
 
   async function submit() {
     setPending(true);
-    const res = await addVacationExpense({
-      vacation_id: vacationId,
-      concepto,
-      amount: Number(amount),
-      occurred_at: date,
-      category: category || null,
-      notas: notas || undefined,
-    });
-    setPending(false);
-    if (res.ok) {
-      toast.success("Gasto añadido al viaje");
-      setConcepto(""); setAmount(""); setNotas(""); setCategory("");
-      setDetected(false); setMethod("manual");
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await addVacationExpense({
+        vacation_id: vacationId,
+        concepto,
+        amount: Number(amount),
+        occurred_at: date,
+        category: category || null,
+        notas: notas || undefined,
+      });
+      if (res.ok) {
+        toast.success("Gasto añadido al viaje");
+        setConcepto(""); setAmount(""); setNotas(""); setCategory("");
+        setDetected(false); setMethod("manual");
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar el gasto");
+    } finally {
+      setPending(false);
+    }
   }
 
   const showCapture = method !== "manual" && !detected;
@@ -575,24 +590,34 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
   async function saveEdit() {
     if (!editId) return;
     setSaving(true);
-    const res = await updateVacationExpense(editId, {
-      concepto: editConcepto,
-      amount: editAmount,
-      occurred_at: editDate,
-      category: editCategory || null,
-      notas: editNotas || undefined,
-    });
-    setSaving(false);
-    if (res.ok) { toast.success("Gasto actualizado"); setEditId(null); router.refresh(); }
-    else toast.error(res.error);
+    try {
+      const res = await updateVacationExpense(editId, {
+        concepto: editConcepto,
+        amount: editAmount,
+        occurred_at: editDate,
+        category: editCategory || null,
+        notas: editNotas || undefined,
+      });
+      if (res.ok) { toast.success("Gasto actualizado"); setEditId(null); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function confirmDelete() {
     if (!deleteId) return;
-    const res = await deleteVacationExpense(deleteId);
-    setDeleteId(null);
-    if (res.ok) { toast.success("Gasto eliminado"); router.refresh(); }
-    else toast.error(res.error);
+    try {
+      const res = await deleteVacationExpense(deleteId);
+      if (res.ok) { toast.success("Gasto eliminado"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al eliminar");
+    } finally {
+      setDeleteId(null);
+    }
   }
 
   return (
@@ -759,22 +784,28 @@ function StartCard() {
   const [pending, setPending] = React.useState(false);
 
   async function submit() {
+    if (Number(budget) < 0) { toast.error("El presupuesto no puede ser negativo"); return; }
     setPending(true);
-    const res = await startVacation({
-      name,
-      budget: Number(budget),
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-    });
-    setPending(false);
-    if (res.ok) {
-      toast.success("Proyecto de vacaciones creado");
-      setName("");
-      setBudget("");
-      setEndDate("");
-      router.refresh();
-    } else if (res.upgradeRequired) upgradeToast(res.error, router);
-    else toast.error(res.error);
+    try {
+      const res = await startVacation({
+        name,
+        budget: Number(budget),
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      });
+      if (res.ok) {
+        toast.success("Proyecto de vacaciones creado");
+        setName("");
+        setBudget("");
+        setEndDate("");
+        router.refresh();
+      } else if (res.upgradeRequired) upgradeToast(res.error, router);
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al crear el viaje");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -800,9 +831,11 @@ function StartCard() {
           />
           <input
             type="number"
+            min={0}
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
             placeholder="Presupuesto €"
+            aria-label="Presupuesto del viaje en euros"
             className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
           />
           <div className="flex gap-3">
