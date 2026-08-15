@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { getServerAuthSession } from "@/lib/auth";
-import { materializeRecurring, getPendingInvites } from "@/lib/data/queries";
+import { materializeRecurring, getPendingInvites, getNotifications } from "@/lib/data/queries";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 
@@ -28,8 +28,9 @@ export default async function DashboardLayout({
   }
 
   // Contabiliza automáticamente los gastos fijos recurrentes del mes.
-  const [pendingInvites] = await Promise.all([
+  const [pendingInvites, notifications] = await Promise.all([
     getPendingInvites(session.user.id),
+    getNotifications(session.user.id),
     getMaterializeOnce(session.user.id)(),
   ]);
 
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
           email={session.user.email}
           image={session.user.image}
           pendingInvites={pendingInvites}
+          notifications={notifications}
         />
         <main className="flex-1 px-5 pb-10 lg:px-8">{children}</main>
       </div>

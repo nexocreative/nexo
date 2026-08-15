@@ -14,9 +14,11 @@ export default async function AjustesPage() {
 
   return (
     <AjustesView
-      notificationPrefs={
-        profile?.notification_prefs ?? { grupo_invite: true, grupo_gasto: true }
-      }
+      notificationPrefs={{
+        grupo_invite: true,
+        grupo_gasto: true,
+        ...profile?.notification_prefs,
+      }}
       plan={plan}
       currentPeriodEnd={sub?.current_period_end ?? null}
       hasPassword={!!authUser?.password}

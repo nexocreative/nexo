@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Users, Check, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { Bell, Users, AlertTriangle, Check, X } from "lucide-react";
 import { UserNav } from "@/components/dashboard/user-nav";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
-import { respondToGrupoInvite } from "@/app/dashboard/actions";
+import { respondToGrupoInvite, markNotificationsRead } from "@/app/dashboard/actions";
 import { toast } from "sonner";
-import type { GrupoInvite } from "@/types/database";
+import type { GrupoInvite, AppNotification } from "@/types/database";
 
 const titles: Record<string, string> = {
   "/dashboard": "Resumen",
@@ -27,18 +29,41 @@ export function Topbar({
   email,
   image,
   pendingInvites = [],
+  notifications = [],
 }: {
   name?: string | null;
   email?: string | null;
   image?: string | null;
   pendingInvites?: GrupoInvite[];
+  notifications?: AppNotification[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const title = titles[pathname] ?? "Nexo";
   const [open, setOpen] = React.useState(false);
   const [responding, setResponding] = React.useState<string | null>(null);
+  // Ids marcados como leídos localmente (optimista, antes de que el servidor
+  // confirme): así una notificación nueva que llegue después de abrir la
+  // campanita una vez sigue mostrando el punto rojo.
+  const [readIds, setReadIds] = React.useState<Set<string>>(new Set());
   const ref = React.useRef<HTMLDivElement>(null);
+  const hasUnread = pendingInvites.length > 0 || notifications.some((n) => !n.read && !readIds.has(n.id));
+
+  function handleToggle() {
+    setOpen((v) => {
+      const next = !v;
+      const unread = notifications.filter((n) => !n.read);
+      if (next && unread.length > 0) {
+        setReadIds((prev) => {
+          const next = new Set(prev);
+          unread.forEach((n) => next.add(n.id));
+          return next;
+        });
+        markNotificationsRead().catch(() => {});
+      }
+      return next;
+    });
+  }
 
   // Cerrar al hacer clic fuera o al pulsar Escape
   React.useEffect(() => {
@@ -87,21 +112,21 @@ export function Topbar({
             aria-label="Notificaciones"
             aria-haspopup="true"
             aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
+            onClick={handleToggle}
             className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground transition-colors hover:text-foreground"
           >
             <Bell className="h-[18px] w-[18px]" />
-            {pendingInvites.length > 0 && (
+            {hasUnread && (
               <span className="absolute right-2 top-2 flex h-2 w-2 rounded-full bg-red-500" />
             )}
           </button>
 
           {open && (
-            <div className="absolute right-0 top-12 z-50 w-80 rounded-2xl border border-border bg-card shadow-xl">
+            <div className="absolute right-0 top-12 z-50 max-h-[70vh] w-80 overflow-y-auto rounded-2xl border border-border bg-card shadow-xl">
               <div className="border-b border-border px-4 py-3">
                 <p className="text-sm font-semibold text-foreground">Notificaciones</p>
               </div>
-              {pendingInvites.length === 0 ? (
+              {pendingInvites.length === 0 && notifications.length === 0 ? (
                 <p className="px-4 py-5 text-center text-sm text-muted-foreground">
                   Sin notificaciones
                 </p>
@@ -138,6 +163,23 @@ export function Topbar({
                           </button>
                         </div>
                       </div>
+                    </li>
+                  ))}
+                  {notifications.map((n) => (
+                    <li key={n.id} className="flex items-start gap-3 p-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent">
+                        <AlertTriangle className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">{n.title}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(n.created_at), { locale: es, addSuffix: true })}
+                        </p>
+                      </div>
+                      {!n.read && !readIds.has(n.id) && (
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                      )}
                     </li>
                   ))}
                 </ul>

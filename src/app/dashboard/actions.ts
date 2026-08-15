@@ -38,6 +38,55 @@ export interface BudgetAlert {
   state: BudgetState;
 }
 
+/** Texto de la notificación (push + campanita) para un aviso de presupuesto. */
+function budgetAlertCopy(a: BudgetAlert): { title: string; body: string } {
+  if (a.state === "blocked") {
+    return { title: "Límite superado", body: `Has superado el límite de ${a.label} (${a.pct}%).` };
+  }
+  if (a.state === "alert") {
+    return { title: "Cerca del límite", body: `Vas por el ${a.pct}% de ${a.label}.` };
+  }
+  return { title: "Aviso de presupuesto", body: `Vas por el ${a.pct}% de ${a.label}.` };
+}
+
+/**
+ * Registra en la campanita (tabla notifications) y envía un push por cada
+ * aviso de presupuesto recién cruzado. No falla el flujo que la llama si
+ * algo sale mal (igual que sendPushNotification): es un "extra".
+ */
+async function notifyBudgetAlerts(userId: string, alerts: BudgetAlert[]): Promise<void> {
+  if (alerts.length === 0) return;
+  try {
+    await Promise.all(
+      alerts.map(async (a) => {
+        const { title, body } = budgetAlertCopy(a);
+        await supabaseAdmin().from("notifications").insert({
+          user_id: userId,
+          type: "budget_alert",
+          title,
+          body,
+          data: { scope: a.scope, pct: a.pct, state: a.state },
+        });
+        await sendPushNotification(userId, { title, body, data: { type: "budget_alert", scope: a.scope } });
+      }),
+    );
+  } catch (e) {
+    console.error("Error notificando alerta de presupuesto:", e);
+  }
+}
+
+/** Marca como leídas todas las notificaciones pendientes del usuario (campanita). */
+export async function markNotificationsRead(): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("notifications")
+    .update({ read: true })
+    .eq("user_id", userId)
+    .eq("read", false);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 // --- Añadir movimiento (gasto o ingreso) -----------------------------------
 
 const txSchema = z.object({
@@ -127,6 +176,7 @@ export async function createTransaction(input: unknown): Promise<ActionResult & 
     ai_confidence: d.ai_confidence ?? null,
   });
   if (error) return { ok: false, error: error.message };
+  await notifyBudgetAlerts(userId, alerts);
   revalidatePath("/dashboard", "layout");
   return { ok: true, alerts: alerts.length ? alerts : undefined };
 }

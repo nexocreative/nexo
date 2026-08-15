@@ -181,3 +181,16 @@ export interface GruposData {
   grupos: GrupoConDetalle[];
   pendingInvites: GrupoInvite[];
 }
+
+// Notificación en app (campanita): alertas de presupuesto, etc.
+export type NotificationType = "budget_alert";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+}

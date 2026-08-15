@@ -15,6 +15,7 @@ import type {
   GrupoMiembro,
   GrupoBalance,
   GrupoInvite,
+  AppNotification,
 } from "@/types/database";
 import {
   CATEGORIES,
@@ -845,6 +846,17 @@ export async function getPendingInvites(userId: string): Promise<GrupoInvite[]> 
     invited_by_email: inviterMap.get(m.invited_by)?.email ?? null,
     created_at: m.created_at,
   }));
+}
+
+/** Últimas notificaciones en app (alertas de presupuesto, etc.), más recientes primero. */
+export async function getNotifications(userId: string, limit = 20): Promise<AppNotification[]> {
+  const { data } = await supabaseAdmin()
+    .from("notifications")
+    .select("id, type, title, body, data, read, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data as AppNotification[]) ?? [];
 }
 
 // ---------------------------------------------------------------------------
