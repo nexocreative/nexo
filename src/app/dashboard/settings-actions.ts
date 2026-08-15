@@ -43,7 +43,10 @@ export async function changePassword(
   const { error } = await admin
     .schema("next_auth")
     .from("users")
-    .update({ password: passwordHash })
+    // session_version invalida cualquier sesión (JWT) ya emitida, incluida
+    // la que se está usando ahora mismo: tras cambiar la contraseña hay que
+    // volver a entrar, como en la mayoría de apps.
+    .update({ password: passwordHash, session_version: Date.now() })
     .eq("id", userId);
 
   if (error) return { ok: false, error: "No se pudo actualizar la contraseña" };

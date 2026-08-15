@@ -41,7 +41,10 @@ export async function POST(req: Request) {
   const { error } = await admin
     .schema("next_auth")
     .from("users")
-    .update({ password: passwordHash })
+    // session_version invalida cualquier sesión (JWT) ya emitida con la
+    // contraseña anterior: si alguien más tenía la sesión abierta, este
+    // reset la corta en el siguiente request.
+    .update({ password: passwordHash, session_version: Date.now() })
     .eq("email", verification.identifier);
 
   if (error) {

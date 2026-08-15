@@ -117,6 +117,33 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        // Sella la versión de sesión vigente al iniciar sesión, para poder
+        // detectar más adelante si esta contraseña se cambió/reseteó
+        // después de emitir este token (ver más abajo).
+        const { data } = await supabaseAdmin()
+          .schema("next_auth")
+          .from("users")
+          .select("session_version")
+          .eq("id", user.id)
+          .maybeSingle();
+        token.sessionVersion = data?.session_version ?? 0;
+        return token;
+      }
+
+      // En cada lectura posterior de la sesión (no solo al iniciar sesión),
+      // comprueba que la contraseña no se haya cambiado/reseteado desde que
+      // se emitió este token. Si no coincide, se fuerza a next-auth a tratar
+      // la sesión como inválida (getServerSession/useSession devuelven null).
+      if (token.id) {
+        const { data } = await supabaseAdmin()
+          .schema("next_auth")
+          .from("users")
+          .select("session_version")
+          .eq("id", token.id as string)
+          .maybeSingle();
+        if (data && data.session_version !== token.sessionVersion) {
+          throw new Error("SessionRevoked");
+        }
       }
       return token;
     },
