@@ -14,7 +14,7 @@ import {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string; tab?: string; email?: string };
+  searchParams: { callbackUrl?: string; tab?: string; email?: string; error?: string };
 }) {
   const session = await getServerAuthSession();
   if (session) {
@@ -39,6 +39,7 @@ export default async function LoginPage({
             callbackUrl={searchParams.callbackUrl}
             defaultTab={searchParams.tab === "register" ? "register" : "login"}
             defaultEmail={searchParams.email}
+            authError={searchParams.error}
           />
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Al continuar aceptas el tratamiento de tus datos. Cada usuario solo

@@ -12,14 +12,23 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { safeCallbackUrl } from "@/lib/utils";
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  OAuthAccountNotLinked: "Ese email ya tiene una cuenta con contraseña. Entra con tu contraseña o recupérala.",
+  AccessDenied: "No se pudo completar el acceso con Google.",
+  OAuthSignin: "No se pudo iniciar el acceso con Google. Inténtalo de nuevo.",
+  OAuthCallback: "No se pudo completar el acceso con Google. Inténtalo de nuevo.",
+};
+
 export function LoginForm({
   callbackUrl,
   defaultTab = "login",
   defaultEmail,
+  authError,
 }: {
   callbackUrl?: string;
   defaultTab?: "login" | "register";
   defaultEmail?: string;
+  authError?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
@@ -27,63 +36,77 @@ export function LoginForm({
   const [showRegisterPassword, setShowRegisterPassword] = React.useState(false);
   const target = safeCallbackUrl(callbackUrl);
 
+  React.useEffect(() => {
+    if (!authError) return;
+    toast.error(OAUTH_ERROR_MESSAGES[authError] ?? "No se pudo iniciar sesión. Inténtalo de nuevo.");
+  }, [authError]);
+
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const data = new FormData(e.currentTarget);
-    const res = await signIn("credentials", {
-      email: String(data.get("email")),
-      password: String(data.get("password")),
-      redirect: false,
-    });
-    setLoading(false);
+    try {
+      const data = new FormData(e.currentTarget);
+      const res = await signIn("credentials", {
+        email: String(data.get("email")),
+        password: String(data.get("password")),
+        redirect: false,
+      });
 
-    if (res?.error) {
-      toast.error("Email o contraseña incorrectos");
-      return;
+      if (res?.error) {
+        toast.error("Email o contraseña incorrectos");
+        return;
+      }
+      router.push(target);
+      router.refresh();
+    } catch {
+      toast.error("Error de conexión al entrar");
+    } finally {
+      setLoading(false);
     }
-    router.push(target);
-    router.refresh();
   }
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const data = new FormData(e.currentTarget);
-    const payload = {
-      name: String(data.get("name") || ""),
-      email: String(data.get("email")),
-      password: String(data.get("password")),
-    };
+    try {
+      const data = new FormData(e.currentTarget);
+      const payload = {
+        name: String(data.get("name") || ""),
+        email: String(data.get("email")),
+        password: String(data.get("password")),
+      };
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error ?? "No se pudo crear la cuenta");
+        return;
+      }
+
+      // Inicia sesión automáticamente tras registrarse.
+      const login = await signIn("credentials", {
+        email: payload.email,
+        password: payload.password,
+        redirect: false,
+      });
+
+      if (login?.error) {
+        toast.error("Cuenta creada, pero falló el inicio de sesión");
+        return;
+      }
+      toast.success("¡Cuenta creada!");
+      router.push(target);
+      router.refresh();
+    } catch {
+      toast.error("Error de conexión al crear la cuenta");
+    } finally {
       setLoading(false);
-      toast.error(json.error ?? "No se pudo crear la cuenta");
-      return;
     }
-
-    // Inicia sesión automáticamente tras registrarse.
-    const login = await signIn("credentials", {
-      email: payload.email,
-      password: payload.password,
-      redirect: false,
-    });
-    setLoading(false);
-
-    if (login?.error) {
-      toast.error("Cuenta creada, pero falló el inicio de sesión");
-      return;
-    }
-    toast.success("¡Cuenta creada!");
-    router.push(target);
-    router.refresh();
   }
 
   async function handleGoogle() {
