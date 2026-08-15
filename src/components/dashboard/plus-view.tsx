@@ -66,6 +66,16 @@ export function PlusView({
     }
   }, [justSubscribed, plan, router]);
 
+  React.useEffect(() => {
+    // Si el usuario va a Stripe y vuelve con "atrás", el navegador puede restaurar
+    // esta página desde bfcache con el spinner de loading congelado tal cual estaba.
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) setLoading(null);
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   async function subscribe(period: "monthly" | "annual") {
     setLoading(period);
     try {
