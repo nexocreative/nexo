@@ -149,101 +149,131 @@ function GrupoDetail({
   async function handleInvite() {
     if (!inviteEmail.trim()) return;
     setInviting(true);
-    const res = await inviteGrupoMember(grupo.id, inviteEmail.trim());
-    setInviting(false);
-    if (res.ok) {
-      toast.success("Invitación enviada");
-      setInviteEmail("");
-      setShowInvite(false);
-      router.refresh();
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await inviteGrupoMember(grupo.id, inviteEmail.trim());
+      if (res.ok) {
+        toast.success("Invitación enviada");
+        setInviteEmail("");
+        setShowInvite(false);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión al invitar");
+    } finally {
+      setInviting(false);
     }
   }
 
   async function handleAddGasto() {
     if (!gastoDesc.trim() || !gastoAmount || gastoParticipants.length === 0) return;
     setAddingGasto(true);
-    const res = await addGrupoGasto({
-      grupoId: grupo.id,
-      description: gastoDesc.trim(),
-      amount: Number(gastoAmount),
-      occurredAt: gastoDate,
-      paidBy: gastoPaidBy,
-      participantIds: gastoParticipants,
-    });
-    setAddingGasto(false);
-    if (res.ok) {
-      toast.success("Gasto añadido");
-      setGastoDesc("");
-      setGastoAmount("");
-      setGastoDate(new Date().toISOString().slice(0, 10));
-      setGastoPaidBy(currentUserId);
-      setGastoParticipants(acceptedMembers.map((m) => m.user_id));
-      setShowAddGasto(false);
-      router.refresh();
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await addGrupoGasto({
+        grupoId: grupo.id,
+        description: gastoDesc.trim(),
+        amount: Number(gastoAmount),
+        occurredAt: gastoDate,
+        paidBy: gastoPaidBy,
+        participantIds: gastoParticipants,
+      });
+      if (res.ok) {
+        toast.success("Gasto añadido");
+        setGastoDesc("");
+        setGastoAmount("");
+        setGastoDate(new Date().toISOString().slice(0, 10));
+        setGastoPaidBy(currentUserId);
+        setGastoParticipants(acceptedMembers.map((m) => m.user_id));
+        setShowAddGasto(false);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión al guardar el gasto");
+    } finally {
+      setAddingGasto(false);
     }
   }
 
   async function handleDeleteGasto() {
     if (!deleteGastoId) return;
-    const res = await deleteGrupoGasto(deleteGastoId);
-    setDeleteGastoId(null);
-    if (res.ok) {
-      toast.success("Gasto eliminado");
-      router.refresh();
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await deleteGrupoGasto(deleteGastoId);
+      if (res.ok) {
+        toast.success("Gasto eliminado");
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión al eliminar");
+    } finally {
+      setDeleteGastoId(null);
     }
   }
 
   async function handleSettle(otherUserId: string, net: number, addToMovements: boolean) {
     setSettling(otherUserId);
-    const res = await settleWithMember(grupo.id, otherUserId);
-    if (res.ok && addToMovements && Math.abs(net) >= 0.01) {
-      const otherName = grupo.members.find((m) => m.user_id === otherUserId)?.display_name
-        ?? grupo.members.find((m) => m.user_id === otherUserId)?.email
-        ?? "compañero";
-      await createTransaction({
-        type: net < 0 ? "expense" : "income",
-        amount: Math.abs(net),
-        category: net < 0 ? "otros" : null,
-        description: `${net < 0 ? "Pago a" : "Cobro de"} ${otherName} - ${grupo.name}`,
-        source: "manual",
-      });
-    }
-    setSettling(null);
-    if (res.ok) {
-      toast.success("Saldado");
-      router.refresh();
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await settleWithMember(grupo.id, otherUserId);
+      if (res.ok && addToMovements && Math.abs(net) >= 0.01) {
+        const otherName = grupo.members.find((m) => m.user_id === otherUserId)?.display_name
+          ?? grupo.members.find((m) => m.user_id === otherUserId)?.email
+          ?? "compañero";
+        await createTransaction({
+          type: net < 0 ? "expense" : "income",
+          amount: Math.abs(net),
+          category: net < 0 ? "otros" : null,
+          description: `${net < 0 ? "Pago a" : "Cobro de"} ${otherName} - ${grupo.name}`,
+          source: "manual",
+        });
+      }
+      if (res.ok) {
+        toast.success("Saldado");
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión al saldar");
+    } finally {
+      setSettling(null);
     }
   }
 
   async function handleSaveName() {
     if (!nameValue.trim() || nameValue.trim() === grupo.name) { setEditingName(false); return; }
     setSavingName(true);
-    const res = await renameGrupo(grupo.id, nameValue);
-    setSavingName(false);
-    if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
-    else toast.error(res.error);
-    setEditingName(false);
+    try {
+      const res = await renameGrupo(grupo.id, nameValue);
+      if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setSavingName(false);
+      setEditingName(false);
+    }
   }
 
   async function handleLeave() {
     setLeaving(true);
-    const isCreator = grupo.created_by === currentUserId;
-    const res = isCreator ? await deleteGrupo(grupo.id) : await leaveGrupo(grupo.id);
-    setLeaving(false);
-    if (res.ok) {
-      toast.success(isCreator ? "Grupo eliminado" : "Has abandonado el grupo");
-      onBack();
-      router.refresh();
-    } else {
-      toast.error(res.error);
+    try {
+      const isCreator = grupo.created_by === currentUserId;
+      const res = isCreator ? await deleteGrupo(grupo.id) : await leaveGrupo(grupo.id);
+      if (res.ok) {
+        toast.success(isCreator ? "Grupo eliminado" : "Has abandonado el grupo");
+        onBack();
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setLeaving(false);
     }
   }
 
@@ -555,10 +585,7 @@ function GrupoDetail({
           <ul className="divide-y divide-border/60 px-6 pb-2">
             {grupo.gastos.map((gasto) => {
               const myPart = gasto.partes.find((p) => p.user_id === currentUserId);
-              const participants = gasto.partes.map((p) => {
-                const m = grupo.members.find((x) => x.user_id === p.user_id);
-                return m?.display_name ?? m?.email ?? p.user_id;
-              });
+              const participants = gasto.partes.map((p) => p.display_name ?? p.email ?? p.user_id);
               return (
                 <li key={gasto.id} className="flex min-w-0 items-start gap-3 py-3.5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">

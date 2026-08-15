@@ -1118,8 +1118,15 @@ export async function getGrupos(userId: string): Promise<GruposData> {
     created_at: string;
   }[];
 
+  // Incluye también a los participantes de cada gasto (partes), no solo a los
+  // miembros actuales y a quien pagó: alguien puede haber dejado el grupo
+  // después de participar en un gasto, y su nombre debe seguir resolviéndose.
   const allUserIds = Array.from(
-    new Set([...miembros.map((m) => m.user_id), ...gastos.map((g) => g.paid_by)]),
+    new Set([
+      ...miembros.map((m) => m.user_id),
+      ...gastos.map((g) => g.paid_by),
+      ...partes.map((p) => p.user_id),
+    ]),
   );
 
   const { data: usersData } = await supabase
@@ -1150,7 +1157,12 @@ export async function getGrupos(userId: string): Promise<GruposData> {
           amount: Number(gasto.amount),
           partes: partes
             .filter((p) => p.gasto_id === gasto.id)
-            .map((p) => ({ ...p, amount: Number(p.amount) })),
+            .map((p) => ({
+              ...p,
+              amount: Number(p.amount),
+              display_name: userMap.get(p.user_id)?.name ?? null,
+              email: userMap.get(p.user_id)?.email ?? null,
+            })),
           paid_by_name: userMap.get(gasto.paid_by)?.name ?? null,
         }));
 

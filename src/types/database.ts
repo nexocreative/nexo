@@ -168,6 +168,10 @@ export interface GrupoGastoParte {
   amount: number;
   settled: boolean;
   settled_at: string | null;
+  // Nombre/email en el momento de consultar, aunque el participante ya no
+  // sea miembro actual del grupo (evita mostrar el user_id en crudo).
+  display_name: string | null;
+  email: string | null;
 }
 
 // Balance neto de un miembro con respecto al usuario actual en un grupo
