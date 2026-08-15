@@ -809,14 +809,15 @@ export async function getJuntos(userId: string): Promise<JuntosData> {
 
   let goal: JuntosData["goal"] = null;
   if (rawGoal) {
-    const pct = Math.min(
-      100,
-      Math.round((Number(rawGoal.current_amount) / Number(rawGoal.target_amount)) * 100),
-    );
+    const targetAmount = Number(rawGoal.target_amount);
+    const pct =
+      targetAmount > 0
+        ? Math.min(100, Math.round((Number(rawGoal.current_amount) / targetAmount) * 100))
+        : 0;
     const target = new Date(rawGoal.target_date);
     const daysLeft = Math.max(0, Math.ceil((target.getTime() - now.getTime()) / 86400000));
     const monthsLeft = Math.max(1, daysLeft / 30);
-    const remaining = Number(rawGoal.target_amount) - Number(rawGoal.current_amount);
+    const remaining = targetAmount - Number(rawGoal.current_amount);
     const monthlyNeeded = Math.max(0, Math.round(remaining / monthsLeft));
     const elapsedRatio = pct / 100;
     const timeRatio =

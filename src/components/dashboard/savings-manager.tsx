@@ -133,7 +133,9 @@ export function SavingsManager({ data }: { data: SavingsData }) {
             {data.categories.map((c) => {
               const isGoal = c.targetAmount != null;
               const pct = isGoal
-                ? Math.min(100, Math.round((c.accumulated / c.targetAmount!) * 100))
+                ? c.targetAmount! > 0
+                  ? Math.min(100, Math.round((c.accumulated / c.targetAmount!) * 100))
+                  : 0
                 : c.monthlyPlan > 0
                   ? Math.min(100, Math.round((c.thisMonth / c.monthlyPlan) * 100))
                   : 0;
