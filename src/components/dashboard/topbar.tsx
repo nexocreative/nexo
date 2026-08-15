@@ -19,6 +19,7 @@ const titles: Record<string, string> = {
   "/dashboard/juntos": "En conjunto",
   "/dashboard/vacaciones": "Vacaciones",
   "/dashboard/ajustes": "Ajustes",
+  "/dashboard/plus": "Nexo Plus",
 };
 
 export function Topbar({
@@ -39,13 +40,20 @@ export function Topbar({
   const [responding, setResponding] = React.useState<string | null>(null);
   const ref = React.useRef<HTMLDivElement>(null);
 
-  // Cerrar al hacer clic fuera
+  // Cerrar al hacer clic fuera o al pulsar Escape
   React.useEffect(() => {
-    function handler(e: MouseEvent) {
+    function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, []);
 
   async function handleRespond(grupoId: string, accept: boolean) {
@@ -77,6 +85,8 @@ export function Topbar({
           <button
             type="button"
             aria-label="Notificaciones"
+            aria-haspopup="true"
+            aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
             className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card text-muted-foreground transition-colors hover:text-foreground"
           >

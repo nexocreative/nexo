@@ -24,12 +24,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/gastos/:path*",
-    "/ingresos/:path*",
-    "/objetivos/:path*",
-    "/vacaciones/:path*",
-    "/ajustes/:path*",
-  ],
+  // Las páginas protegidas viven todas bajo /dashboard/*; las rutas de
+  // nivel superior de aquí abajo no existen en la app.
+  matcher: ["/dashboard/:path*"],
 };

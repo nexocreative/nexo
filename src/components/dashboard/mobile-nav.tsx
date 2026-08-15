@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 
 export function MobileNav() {
@@ -18,6 +18,8 @@ export function MobileNav() {
         </button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 bg-sidebar p-5">
+        <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
+        <SheetDescription className="sr-only">Accede a las secciones de Nexo</SheetDescription>
         <SidebarNav onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
