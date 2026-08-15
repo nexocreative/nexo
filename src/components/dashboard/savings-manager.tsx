@@ -12,6 +12,7 @@ import {
   Wallet,
   CalendarRange,
   TrendingUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -210,15 +211,18 @@ function MonthlyTable({
           <h3 className="text-base font-bold text-foreground">Resumen mensual</h3>
           <p className="text-xs text-muted-foreground">Cuánto has ahorrado por categoría en el mes elegido.</p>
         </div>
-        <select
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold capitalize outline-none focus:border-primary/50 sm:w-auto"
-        >
-          {months.map((m) => (
-            <option key={m.value} value={m.value} className="capitalize">{m.label}</option>
-          ))}
-        </select>
+        <div className="relative w-full sm:w-auto">
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-9 text-sm font-semibold capitalize outline-none focus:border-primary/50 sm:w-auto"
+          >
+            {months.map((m) => (
+              <option key={m.value} value={m.value} className="capitalize">{m.label}</option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        </div>
       </div>
 
       {categories.length === 0 ? (
@@ -568,15 +572,18 @@ function ContributeDialog({
         <div className="space-y-4">
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className="relative mt-1.5">
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-9 text-sm outline-none focus:border-primary/50"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
           </div>
 
           <div className="flex gap-3">
@@ -594,15 +601,18 @@ function ContributeDialog({
             </div>
             <div className="flex-1">
               <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mes</label>
-              <select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm capitalize outline-none focus:border-primary/50"
-              >
-                {months.map((m) => (
-                  <option key={m.value} value={m.value} className="capitalize">{m.label}</option>
-                ))}
-              </select>
+              <div className="relative mt-1.5">
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-9 text-sm capitalize outline-none focus:border-primary/50"
+                >
+                  {months.map((m) => (
+                    <option key={m.value} value={m.value} className="capitalize">{m.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">Usa un importe negativo para corregir o retirar ahorro.</p>

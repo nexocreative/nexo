@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { CATEGORIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -48,35 +49,41 @@ export function MovementsFilters({
       </div>
 
       <div className="flex gap-2 sm:ml-auto">
-        <select
-          value={category}
-          onChange={(e) => setParam("category", e.target.value || null)}
-          className={cn(
-            "min-w-0 flex-1 rounded-full border px-4 py-2 text-sm font-semibold outline-none transition-colors focus:border-primary/50 sm:flex-none",
-            category
-              ? "border-primary/40 bg-accent text-accent-foreground"
-              : "border-border bg-card text-foreground",
-          )}
-        >
-          <option value="">Todas las categorías</option>
-          {CATEGORIES.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative min-w-0 flex-1 sm:flex-none">
+          <select
+            value={category}
+            onChange={(e) => setParam("category", e.target.value || null)}
+            className={cn(
+              "w-full appearance-none rounded-full border py-2 pl-4 pr-9 text-sm font-semibold outline-none transition-colors focus:border-primary/50",
+              category
+                ? "border-primary/40 bg-accent text-accent-foreground"
+                : "border-border bg-card text-foreground",
+            )}
+          >
+            <option value="">Todas las categorías</option>
+            {CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        </div>
 
-        <select
-          value={month}
-          onChange={(e) => setParam("month", e.target.value)}
-          className="min-w-0 flex-1 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground outline-none focus:border-primary/50 sm:flex-none"
-        >
-          {monthOptions.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative min-w-0 flex-1 sm:flex-none">
+          <select
+            value={month}
+            onChange={(e) => setParam("month", e.target.value)}
+            className="w-full appearance-none rounded-full border border-border bg-card py-2 pl-4 pr-9 text-sm font-semibold text-foreground outline-none focus:border-primary/50"
+          >
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        </div>
       </div>
     </div>
   );

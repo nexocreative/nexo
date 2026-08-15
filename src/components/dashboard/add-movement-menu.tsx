@@ -122,16 +122,19 @@ export function AddMovementMenu({ incomeCategories }: { incomeCategories: string
 
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-              >
-                {incomeCategories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-                <option value={NEW_CATEGORY}>+ Nueva categoría…</option>
-              </select>
+              <div className="relative mt-1.5">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-9 text-sm outline-none focus:border-primary/50"
+                >
+                  {incomeCategories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                  <option value={NEW_CATEGORY}>+ Nueva categoría…</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
               {category === NEW_CATEGORY && (
                 <input
                   value={newCategory}
