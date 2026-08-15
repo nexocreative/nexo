@@ -49,7 +49,7 @@ export default async function GraficasPage() {
         </section>
 
         {/* Proyección fin de mes */}
-        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+        <section className="self-start rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-primary">
               <Target className="h-[18px] w-[18px]" />
