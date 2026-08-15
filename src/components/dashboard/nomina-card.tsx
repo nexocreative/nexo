@@ -14,17 +14,26 @@ export function NominaCard({ expected }: { expected: number }) {
   const [pending, setPending] = React.useState(false);
 
   async function submit(isUsual: boolean) {
+    if (!isUsual && !(Number(amount) > 0)) {
+      toast.error("Indica un importe válido");
+      return;
+    }
     setPending(true);
-    const res = await confirmNomina({
-      isUsual,
-      amount: isUsual ? undefined : Number(amount),
-    });
-    setPending(false);
-    if (res.ok) {
-      toast.success("Nómina registrada en tus ingresos del mes");
-      router.refresh();
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await confirmNomina({
+        isUsual,
+        amount: isUsual ? undefined : Number(amount),
+      });
+      if (res.ok) {
+        toast.success("Nómina registrada en tus ingresos del mes");
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setPending(false);
     }
   }
 
@@ -77,7 +86,7 @@ export function NominaCard({ expected }: { expected: number }) {
           />
           <div className="flex gap-2">
             <button
-              disabled={pending}
+              disabled={pending || !(Number(amount) > 0)}
               onClick={() => submit(false)}
               className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
