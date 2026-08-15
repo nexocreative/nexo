@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { safeCallbackUrl } from "@/lib/utils";
 
 export function LoginForm({
   callbackUrl,
@@ -24,7 +25,7 @@ export function LoginForm({
   const [loading, setLoading] = React.useState(false);
   const [showLoginPassword, setShowLoginPassword] = React.useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = React.useState(false);
-  const target = callbackUrl || "/dashboard";
+  const target = safeCallbackUrl(callbackUrl);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

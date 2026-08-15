@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/lib/auth";
+import { safeCallbackUrl } from "@/lib/utils";
 import { LoginForm } from "./login-form";
 import {
   Card,
@@ -17,7 +18,7 @@ export default async function LoginPage({
 }) {
   const session = await getServerAuthSession();
   if (session) {
-    redirect(searchParams.callbackUrl || "/dashboard");
+    redirect(safeCallbackUrl(searchParams.callbackUrl));
   }
 
   return (

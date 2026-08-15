@@ -74,6 +74,20 @@ export const authOptions: NextAuthOptions = {
         const admin = supabaseAdmin();
         const googleName = (profile as { name?: string } | undefined)?.name;
 
+        // allowDangerousEmailAccountLinking enlaza este login de Google a una
+        // cuenta next_auth.users ya existente con el mismo email. Si esa cuenta
+        // tenía contraseña, alguien pudo haberla creado sin ser la dueña real
+        // del email (el registro por contraseña no verifica el email). Google
+        // sí verifica el email, así que en cuanto se confirma la propiedad
+        // real invalidamos esa contraseña: si era legítima, su dueña sigue
+        // entrando con Google; si era de un atacante, deja de servirle.
+        await admin
+          .schema("next_auth")
+          .from("users")
+          .update({ password: null })
+          .eq("id", user.id)
+          .not("password", "is", null);
+
         if (googleName) {
           await admin
             .schema("next_auth")
