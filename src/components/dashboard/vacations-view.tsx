@@ -338,6 +338,20 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
   const fileRef = React.useRef<HTMLInputElement>(null);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
+  const mountedRef = React.useRef(true);
+
+  // Si el componente se desmonta (p.ej. se navega fuera) a media grabación o
+  // análisis, libera el micrófono y evita setState sobre un componente ya
+  // desmontado.
+  React.useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      const mr = mediaRecorderRef.current;
+      if (mr && mr.state !== "inactive") {
+        mr.stream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
 
   function pickMethod(m: VacMethod) {
     setMethod(m);
@@ -353,6 +367,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
       fd.append("file", file);
       const res = await fetch("/api/ticket", { method: "POST", body: fd });
       const json = await res.json();
+      if (!mountedRef.current) return;
       if (!res.ok) { toast.error(json.error ?? "No se pudo analizar el ticket"); return; }
       const d = json.data;
       if (d.comercio) setConcepto(d.comercio);
@@ -361,8 +376,11 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
       if (d.fecha) setDate(d.fecha);
       setDetected(true);
       toast.success("Ticket analizado · revisa los datos");
-    } catch { toast.error("Error de conexión al analizar el ticket"); }
-    finally { setAnalyzing(false); }
+    } catch {
+      if (mountedRef.current) toast.error("Error de conexión al analizar el ticket");
+    } finally {
+      if (mountedRef.current) setAnalyzing(false);
+    }
   }
 
   async function startRecording() {
@@ -391,6 +409,7 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
       fd.append("file", blob, "audio.webm");
       const res = await fetch("/api/voice", { method: "POST", body: fd });
       const json = await res.json();
+      if (!mountedRef.current) return;
       if (!res.ok) { toast.error(json.error ?? "No se pudo procesar la voz"); return; }
       const d = json.data;
       if (d.comercio) setConcepto(d.comercio);
@@ -399,8 +418,11 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
       if (d.fecha) setDate(d.fecha);
       setDetected(true);
       toast.success(`Entendido: "${json.transcript}"`);
-    } catch { toast.error("Error de conexión al procesar la voz"); }
-    finally { setAnalyzing(false); }
+    } catch {
+      if (mountedRef.current) toast.error("Error de conexión al procesar la voz");
+    } finally {
+      if (mountedRef.current) setAnalyzing(false);
+    }
   }
 
   async function submit() {
