@@ -22,15 +22,27 @@ export function AjustesView({
   notificationPrefs,
   plan,
   currentPeriodEnd,
+  hasPassword,
 }: {
   notificationPrefs: NotificationPrefs;
   plan: "free" | "plus";
   currentPeriodEnd: string | null;
+  hasPassword: boolean;
 }) {
   return (
     <div className="space-y-6 pt-4">
       <PlanSection plan={plan} currentPeriodEnd={currentPeriodEnd} />
-      <PasswordSection />
+      {hasPassword ? (
+        <PasswordSection />
+      ) : (
+        <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+          <h3 className="text-base font-bold text-foreground">Contraseña</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Entraste con Google, así que no tienes contraseña que cambiar aquí. Sigue usando
+            &quot;Continuar con Google&quot; para entrar en Nexo.
+          </p>
+        </section>
+      )}
       <NotificationsSection initial={notificationPrefs} />
     </div>
   );

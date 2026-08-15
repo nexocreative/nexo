@@ -5,10 +5,11 @@ import { AjustesView } from "@/components/dashboard/ajustes-view";
 
 export default async function AjustesPage() {
   const userId = await requireUserId();
-  const [profile, plan, { data: sub }] = await Promise.all([
+  const [profile, plan, { data: sub }, { data: authUser }] = await Promise.all([
     getProfile(userId),
     getUserPlan(userId),
     supabaseAdmin().from("subscriptions").select("current_period_end").eq("user_id", userId).maybeSingle(),
+    supabaseAdmin().schema("next_auth").from("users").select("password").eq("id", userId).maybeSingle(),
   ]);
 
   return (
@@ -18,6 +19,7 @@ export default async function AjustesPage() {
       }
       plan={plan}
       currentPeriodEnd={sub?.current_period_end ?? null}
+      hasPassword={!!authUser?.password}
     />
   );
 }
