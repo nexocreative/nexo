@@ -122,6 +122,7 @@ function GlobalCard({ global }: { global: { limit: number | null; spent: number;
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Importe mensual"
+            aria-label="Importe mensual del límite global"
             className="flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
           />
           <button
