@@ -173,35 +173,46 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
+    if (!(Number(amount) > 0)) { toast.error("Indica un importe válido"); return; }
     setPending(true);
-    const payload = {
-      type,
-      description,
-      amount: Number(amount),
-      category: type === "income" ? null : category,
-      day_of_month: Number(day),
-      active,
-    };
-    const res = item ? await updateRecurring(item.id, payload) : await createRecurring(payload);
-    setPending(false);
-    if (res.ok) {
-      const label = type === "income" ? "Ingreso fijo" : "Gasto fijo";
-      toast.success(item ? `${label} actualizado` : `${label} añadido`);
-      onClose();
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const payload = {
+        type,
+        description,
+        amount: Number(amount),
+        category: type === "income" ? null : category,
+        day_of_month: Number(day),
+        active,
+      };
+      const res = item ? await updateRecurring(item.id, payload) : await createRecurring(payload);
+      if (res.ok) {
+        const label = type === "income" ? "Ingreso fijo" : "Gasto fijo";
+        toast.success(item ? `${label} actualizado` : `${label} añadido`);
+        onClose();
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function remove() {
     if (!item) return;
     setPending(true);
-    const res = await deleteRecurring(item.id);
-    setPending(false);
-    if (res.ok) {
-      toast.success("Gasto fijo eliminado");
-      onClose();
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await deleteRecurring(item.id);
+      if (res.ok) {
+        toast.success("Gasto fijo eliminado");
+        onClose();
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al eliminar");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -230,10 +241,12 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Concepto</label>
+            <label htmlFor="rec-concepto" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Concepto</label>
             <input
+              id="rec-concepto"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              maxLength={120}
               placeholder="Ej. Spotify, Alquiler, Nómina"
               className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
             />
@@ -291,7 +304,7 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
 
           <div className="flex items-center gap-2 pt-1">
             <button
-              disabled={pending || !description || !amount}
+              disabled={pending || !description || !(Number(amount) > 0)}
               onClick={save}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >

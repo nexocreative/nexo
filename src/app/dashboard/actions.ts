@@ -44,8 +44,8 @@ const txSchema = z.object({
   type: z.enum(["expense", "income"]),
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
   category: z.enum(CATEGORY_KEYS).nullable().optional(),
-  merchant: z.string().trim().max(120).optional(),
-  description: z.string().trim().max(240).optional(),
+  merchant: z.string().trim().max(120, "El comercio no puede superar los 120 caracteres").optional(),
+  description: z.string().trim().max(240, "La descripción no puede superar los 240 caracteres").optional(),
   occurred_at: z.string().optional(),
   source: z.enum(["manual", "photo", "voice", "chat", "import"]).default("manual"),
   vacation_id: z.string().uuid().nullable().optional(),
@@ -178,8 +178,8 @@ export async function createTransactionsBulk(
 
 const incomeSchema = z.object({
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
-  category: z.string().trim().min(1, "La categoría es obligatoria").max(60),
-  description: z.string().trim().max(240).optional(),
+  category: z.string().trim().min(1, "La categoría es obligatoria").max(60, "La categoría no puede superar los 60 caracteres"),
+  description: z.string().trim().max(240, "La descripción no puede superar los 240 caracteres").optional(),
   occurred_at: z.string().optional(),
 });
 
@@ -226,8 +226,8 @@ const recurringSchema = z.object({
   type: z.enum(["expense", "income"]),
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
   category: z.enum(CATEGORY_KEYS).nullable().optional(),
-  description: z.string().trim().min(1, "El concepto es obligatorio").max(120),
-  day_of_month: z.coerce.number().int().min(1).max(28),
+  description: z.string().trim().min(1, "El concepto es obligatorio").max(120, "El concepto no puede superar los 120 caracteres"),
+  day_of_month: z.coerce.number().int().min(1, "El día debe estar entre 1 y 28").max(28, "El día debe estar entre 1 y 28"),
   active: z.boolean().optional(),
 });
 

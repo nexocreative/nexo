@@ -331,6 +331,7 @@ function GastosSection() {
                   id="gasto-comercio"
                   value={merchant}
                   onChange={(e) => setMerchant(e.target.value)}
+                  maxLength={120}
                   placeholder="Ej. Mercadona"
                   className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
                 />
@@ -588,6 +589,7 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
                   id="ingreso-descripcion"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  maxLength={240}
                   placeholder="Ej. Nómina de junio"
                   className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
                 />

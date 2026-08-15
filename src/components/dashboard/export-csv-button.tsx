@@ -4,11 +4,21 @@ import Link from "next/link";
 import { Download, Lock } from "lucide-react";
 import type { MovementRow } from "@/components/dashboard/movements-list";
 
+/**
+ * Neutraliza la inyección de fórmulas CSV: si Excel/Sheets abre una celda que
+ * empieza por = + - @ (o tab/retorno de carro), la interpreta como fórmula en
+ * vez de texto. El comercio/descripción puede venir de texto libre o de la IA,
+ * así que se antepone un apóstrofo para forzar que se lea como texto literal.
+ */
+function sanitizeCsvCell(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 function toCsv(rows: MovementRow[]): string {
   const header = ["Fecha", "Tipo", "Categoría", "Comercio/Descripción", "Importe"];
   const lines = rows.map((r) => {
     const tipo = r.type === "income" ? "Ingreso" : r.type === "savings" ? "Ahorro" : "Gasto";
-    const concepto = (r.merchant || r.description || "").replace(/"/g, '""');
+    const concepto = sanitizeCsvCell(r.merchant || r.description || "").replace(/"/g, '""');
     return [r.occurred_at, tipo, r.cat.label, `"${concepto}"`, r.amount.toFixed(2)].join(",");
   });
   return [header.join(","), ...lines].join("\n");
