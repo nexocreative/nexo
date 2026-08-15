@@ -26,20 +26,25 @@ export function ResetPasswordForm({ token }: { token: string }) {
     }
 
     setLoading(true);
-    const res = await fetch("/api/password-reset/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, password }),
-    });
-    const json = await res.json().catch(() => ({}));
-    setLoading(false);
+    try {
+      const res = await fetch("/api/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      const json = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      toast.error(json.error ?? "No se pudo actualizar la contraseña");
-      return;
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo actualizar la contraseña");
+        return;
+      }
+      toast.success("Contraseña actualizada");
+      router.push("/login");
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setLoading(false);
     }
-    toast.success("Contraseña actualizada");
-    router.push("/login");
   }
 
   if (!token) {

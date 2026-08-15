@@ -14,19 +14,24 @@ export function ForgotPasswordForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const data = new FormData(e.currentTarget);
-    const res = await fetch("/api/password-reset/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: String(data.get("email")) }),
-    });
-    setLoading(false);
+    try {
+      const data = new FormData(e.currentTarget);
+      const res = await fetch("/api/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: String(data.get("email")) }),
+      });
 
-    if (!res.ok) {
-      toast.error("No se pudo procesar la solicitud");
-      return;
+      if (!res.ok) {
+        toast.error("No se pudo procesar la solicitud");
+        return;
+      }
+      setSent(true);
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setLoading(false);
     }
-    setSent(true);
   }
 
   if (sent) {
