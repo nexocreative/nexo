@@ -20,7 +20,10 @@ export async function POST(req: Request) {
 
   const gate = await requirePlusForAi(userId);
   if (!gate.ok) {
-    return NextResponse.json({ error: gate.error, upgradeRequired: true }, { status: gate.status });
+    return NextResponse.json(
+      { error: gate.error, upgradeRequired: gate.reason === "not_plus" },
+      { status: gate.status },
+    );
   }
 
   let file: File | null = null;

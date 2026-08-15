@@ -8,7 +8,7 @@ import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import { ImportarSection } from "@/components/dashboard/import-section";
 import { createTransaction, createIncome, type BudgetAlert } from "@/app/dashboard/actions";
-import { formatEUR } from "@/lib/format";
+import { formatEUR, todayLocalISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { upgradeToast } from "@/lib/upgrade-toast";
 
@@ -105,7 +105,7 @@ function GastosSection() {
   const [category, setCategory] = React.useState("supermercado");
   const [merchant, setMerchant] = React.useState("");
   const [amount, setAmount] = React.useState("");
-  const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = React.useState(todayLocalISO());
   const [detected, setDetected] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [analyzing, setAnalyzing] = React.useState(false);
@@ -115,6 +115,17 @@ function GastosSection() {
   const fileRef = React.useRef<HTMLInputElement>(null);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
+
+  // Si el componente se desmonta (p.ej. se cambia de pestaña) a media grabación,
+  // libera el micrófono en vez de dejarlo "escuchando" en segundo plano.
+  React.useEffect(() => {
+    return () => {
+      const mr = mediaRecorderRef.current;
+      if (mr && mr.state !== "inactive") {
+        mr.stream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
 
   function pickMethod(m: ExpenseMethod) {
     setMethod(m);
@@ -300,9 +311,10 @@ function GastosSection() {
           ) : (
             <>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Importe</label>
+                <label htmlFor="gasto-importe" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Importe</label>
                 <div className="mt-1.5 flex items-center rounded-xl border border-border bg-card px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
                   <input
+                    id="gasto-importe"
                     type="number"
                     step="0.01"
                     value={amount}
@@ -314,8 +326,9 @@ function GastosSection() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Comercio</label>
+                <label htmlFor="gasto-comercio" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Comercio</label>
                 <input
+                  id="gasto-comercio"
                   value={merchant}
                   onChange={(e) => setMerchant(e.target.value)}
                   placeholder="Ej. Mercadona"
@@ -323,8 +336,9 @@ function GastosSection() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
+                <label htmlFor="gasto-fecha" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
                 <input
+                  id="gasto-fecha"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
@@ -405,7 +419,7 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
   const [method, setMethod] = React.useState<IncomeMethod>("manual");
   const [amount, setAmount] = React.useState("");
   const [description, setDescription] = React.useState("");
-  const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = React.useState(todayLocalISO());
   const [category, setCategory] = React.useState(incomeCategories[0] ?? "Salario");
   const [newCategory, setNewCategory] = React.useState("");
   const [detected, setDetected] = React.useState(false);
@@ -414,6 +428,17 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
   const [recording, setRecording] = React.useState(false);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
+
+  // Si el componente se desmonta (p.ej. se cambia de pestaña) a media grabación,
+  // libera el micrófono en vez de dejarlo "escuchando" en segundo plano.
+  React.useEffect(() => {
+    return () => {
+      const mr = mediaRecorderRef.current;
+      if (mr && mr.state !== "inactive") {
+        mr.stream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
 
   function pickMethod(m: IncomeMethod) {
     setMethod(m);
@@ -543,9 +568,10 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
           ) : (
             <>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Importe</label>
+                <label htmlFor="ingreso-importe" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Importe</label>
                 <div className="mt-1.5 flex items-center rounded-xl border border-border bg-card px-3 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
                   <input
+                    id="ingreso-importe"
                     type="number"
                     step="0.01"
                     value={amount}
@@ -557,8 +583,9 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Descripción</label>
+                <label htmlFor="ingreso-descripcion" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Descripción</label>
                 <input
+                  id="ingreso-descripcion"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ej. Nómina de junio"
@@ -566,8 +593,9 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
+                <label htmlFor="ingreso-fecha" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
                 <input
+                  id="ingreso-fecha"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}

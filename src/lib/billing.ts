@@ -35,10 +35,13 @@ function startOfCurrentMonthIso(): string {
 /** Comprueba que el usuario puede usar una función de IA (plan Plus + cuota mensual). */
 export async function requirePlusForAi(
   userId: string,
-): Promise<{ ok: true } | { ok: false; status: 402; error: string }> {
+): Promise<
+  | { ok: true }
+  | { ok: false; status: 402; error: string; reason: "not_plus" | "quota_exceeded" }
+> {
   const plan = await getUserPlan(userId);
   if (plan !== "plus") {
-    return { ok: false, status: 402, error: "Esta función es exclusiva de Nexo Plus." };
+    return { ok: false, status: 402, error: "Esta función es exclusiva de Nexo Plus.", reason: "not_plus" };
   }
 
   // Solo cuentan los usos que terminaron con éxito (kind "..._success",
@@ -52,7 +55,12 @@ export async function requirePlusForAi(
     .gte("created_at", startOfCurrentMonthIso());
 
   if ((count ?? 0) >= AI_MONTHLY_QUOTA) {
-    return { ok: false, status: 402, error: "Has alcanzado tu límite mensual de IA. Vuelve a intentarlo el próximo mes." };
+    return {
+      ok: false,
+      status: 402,
+      error: "Has alcanzado tu límite mensual de IA. Vuelve a intentarlo el próximo mes.",
+      reason: "quota_exceeded",
+    };
   }
   return { ok: true };
 }
