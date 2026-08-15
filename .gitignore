@@ -34,8 +34,8 @@ yarn-error.log*
 .env*.local
 !.env.example
 
-# claude code (config local con secretos)
-.claude/settings.local.json
+# claude code (config y symlinks locales; el contenido real de los skills vive en .agents/skills)
+.claude/
 
 # vercel
 .vercel
