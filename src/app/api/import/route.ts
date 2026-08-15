@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { getServerAuthSession } from "@/lib/auth";
 import { getOpenAI, VISION_MODEL } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { checkAndRecordRateLimit } from "@/lib/rate-limit";
+import { checkAndRecordRateLimit, recordAiSuccess } from "@/lib/rate-limit";
 import { CATEGORIES } from "@/lib/constants";
 import { requirePlusForAi } from "@/lib/billing";
 
@@ -162,6 +162,7 @@ export async function POST(req: Request) {
       { status: 502 },
     );
   }
+  await recordAiSuccess(userId, "import");
 
   const rawRows = Array.isArray(extracted.movimientos) ? extracted.movimientos : [];
 

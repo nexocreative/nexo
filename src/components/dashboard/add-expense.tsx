@@ -195,21 +195,26 @@ function GastosSection() {
   async function confirm() {
     if (!amount || Number(amount) <= 0) { toast.error("Indica un importe válido"); return; }
     setPending(true);
-    const res = await createTransaction({
-      type: "expense",
-      amount: Number(amount),
-      category,
-      merchant: merchant || undefined,
-      occurred_at: date,
-      source: method,
-      receipt_url: receiptPath,
-    });
-    setPending(false);
-    if (res.ok) {
-      toast.success("Gasto registrado");
-      notifyBudgetAlerts(res.alerts);
-      router.push("/dashboard/movimientos");
-    } else toast.error(res.error);
+    try {
+      const res = await createTransaction({
+        type: "expense",
+        amount: Number(amount),
+        category,
+        merchant: merchant || undefined,
+        occurred_at: date,
+        source: method,
+        receipt_url: receiptPath,
+      });
+      if (res.ok) {
+        toast.success("Gasto registrado");
+        notifyBudgetAlerts(res.alerts);
+        router.push("/dashboard/movimientos");
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar el gasto");
+    } finally {
+      setPending(false);
+    }
   }
 
   const showCapture = method !== "manual" && !detected;
@@ -464,15 +469,20 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
     if (!amount || Number(amount) <= 0) { toast.error("Indica un importe válido"); return; }
     if (!finalCategory) { toast.error("Indica una categoría"); return; }
     setPending(true);
-    const res = await createIncome({
-      amount: Number(amount),
-      category: finalCategory,
-      description,
-      occurred_at: date,
-    });
-    setPending(false);
-    if (res.ok) { toast.success("Ingreso registrado"); router.push("/dashboard/movimientos"); }
-    else toast.error(res.error);
+    try {
+      const res = await createIncome({
+        amount: Number(amount),
+        category: finalCategory,
+        description,
+        occurred_at: date,
+      });
+      if (res.ok) { toast.success("Ingreso registrado"); router.push("/dashboard/movimientos"); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar el ingreso");
+    } finally {
+      setPending(false);
+    }
   }
 
   const showCapture = method !== "manual" && !detected;

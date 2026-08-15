@@ -34,6 +34,21 @@ export async function checkAndRecordRateLimit(
   return { ok: true, retryAfterSec: 0 };
 }
 
+/**
+ * Registra un uso de IA que terminó con éxito (a diferencia del intento
+ * registrado por `checkAndRecordRateLimit`, que cuenta también los fallidos
+ * para limitar la frecuencia). El cupo mensual de `requirePlusForAi` en
+ * lib/billing.ts solo cuenta eventos con kind terminado en "_success", así
+ * que un análisis fallido no consume cupo del usuario.
+ */
+export async function recordAiSuccess(userId: string, kind: string): Promise<void> {
+  try {
+    await supabaseAdmin().from("ai_usage_events").insert({ user_id: userId, kind: `${kind}_success` });
+  } catch {
+    // No bloqueamos la respuesta si el registro falla.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Protección anti-fuerza bruta en el login.
 // Tras varios intentos fallidos seguidos para un mismo email, se bloquea

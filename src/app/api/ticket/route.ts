@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getOpenAI, VISION_MODEL } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { checkAndRecordRateLimit } from "@/lib/rate-limit";
+import { checkAndRecordRateLimit, recordAiSuccess } from "@/lib/rate-limit";
 import { requirePlusForAi } from "@/lib/billing";
 import { requireUserIdFromRequest } from "@/lib/mobile-auth";
 
@@ -111,6 +111,7 @@ export async function POST(req: Request) {
       { status: 502 },
     );
   }
+  await recordAiSuccess(userId, "ticket");
 
   // Normaliza categoría
   const cat = String(extracted.categoria ?? "").toLowerCase();

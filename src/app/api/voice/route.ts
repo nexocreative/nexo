@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOpenAI, WHISPER_MODEL, VISION_MODEL } from "@/lib/openai";
-import { checkAndRecordRateLimit } from "@/lib/rate-limit";
+import { checkAndRecordRateLimit, recordAiSuccess } from "@/lib/rate-limit";
 import { requirePlusForAi } from "@/lib/billing";
 import { requireUserIdFromRequest } from "@/lib/mobile-auth";
 
@@ -96,6 +96,7 @@ Reglas: si falta un dato usa "" / 0; "categoria" debe ser uno de los permitidos 
       { status: 502 },
     );
   }
+  await recordAiSuccess(userId, "voice");
 
   const cat = String(extracted.categoria ?? "").toLowerCase();
   const category = CATEGORY_KEYS.includes(cat) ? cat : "otros";

@@ -41,10 +41,14 @@ export async function requirePlusForAi(
     return { ok: false, status: 402, error: "Esta función es exclusiva de Nexo Plus." };
   }
 
+  // Solo cuentan los usos que terminaron con éxito (kind "..._success",
+  // registrados por recordAiSuccess en lib/rate-limit.ts). Un análisis
+  // fallido no debe descontar cupo mensual al usuario.
   const { count } = await supabaseAdmin()
     .from("ai_usage_events")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
+    .like("kind", "%_success")
     .gte("created_at", startOfCurrentMonthIso());
 
   if ((count ?? 0) >= AI_MONTHLY_QUOTA) {
