@@ -26,9 +26,7 @@ const ids = [A.id, B.id];
 await admin.from("transactions").delete().in("user_id", ids);
 await admin.from("recurring_rules").delete().in("user_id", ids);
 await admin.from("category_budgets").delete().in("user_id", ids);
-await admin.from("savings_goals").delete().in("owner_id", ids);
 await admin.from("vacation_periods").delete().in("user_id", ids);
-await admin.from("partner_links").delete().or(`requester_id.in.(${ids.join(",")}),partner_id.in.(${ids.join(",")})`);
 console.log("Limpieza previa hecha.");
 
 // --- Helpers de fecha ------------------------------------------------------
@@ -47,8 +45,8 @@ function monthKeyOf(monthOffset) {
 
 // --- Perfiles --------------------------------------------------------------
 await admin.from("profiles").upsert([
-  { id: A.id, display_name: A.name, currency: "EUR", monthly_budget: 2500, partner_id: B.id, share_consent: true },
-  { id: B.id, display_name: B.name, currency: "EUR", monthly_budget: 2200, partner_id: A.id, share_consent: true },
+  { id: A.id, display_name: A.name, currency: "EUR", monthly_budget: 2500 },
+  { id: B.id, display_name: B.name, currency: "EUR", monthly_budget: 2200 },
 ]);
 
 // --- Reglas recurrentes de A (gastos fijos + nómina) -----------------------
@@ -132,7 +130,7 @@ expense(0, 8, "Metro", "transporte", 21.5, "manual");
 expense(0, 7, "Farmacia", "salud", 18.9, "manual");
 expense(0, 20, "Zara", "ropa", 49.95, "manual");
 
-// Algunas transacciones de B para la vista consolidada (Juntos)
+// Algunas transacciones de B (usuaria de prueba para grupos en "Juntos")
 for (let m = 5; m >= 0; m--) {
   income(B.id, m, 1, "Nómina", 1900, "recurring");
   tx.push({ user_id: B.id, type: "expense", amount: 700, category: "hogar", merchant: "Alquiler (parte)", occurred_at: dateOf(m, 1), source: "recurring" });
@@ -162,17 +160,5 @@ expense(3, 5, "Tranvía 28", "transporte", 15, "manual", { vacation_id: vacClose
 const { error: txErr, count } = await admin.from("transactions").insert(tx, { count: "exact" });
 if (txErr) { console.error("Error insertando transacciones:", txErr); process.exit(1); }
 console.log(`Transacciones insertadas: ${tx.length}`);
-
-// --- Objetivo de ahorro conjunto -------------------------------------------
-await admin.from("savings_goals").insert({
-  owner_id: A.id, partner_id: B.id, name: "Viaje a Japón 2026",
-  target_amount: 8000, current_amount: 3200, target_date: `${Y + 1}-06-30`,
-});
-
-// --- Vínculo de pareja (vista conjunta activa) -----------------------------
-await admin.from("partner_links").insert({
-  requester_id: A.id, partner_id: B.id, status: "accepted",
-  requester_consent: true, partner_consent: true,
-});
 
 console.log("✅ Seed completado.");

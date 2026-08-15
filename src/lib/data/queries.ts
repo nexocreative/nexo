@@ -6,12 +6,10 @@ import type {
   Transaction,
   RecurringRule,
   CategoryBudget,
-  SavingsGoal,
   SavingsCategory,
   SavingsEntry,
   VacationPeriod,
   Profile,
-  PartnerLink,
   GruposData,
   GrupoConDetalle,
   GrupoMiembro,
@@ -56,7 +54,7 @@ function withCategory(t: Transaction): TxView {
 }
 
 // ---------------------------------------------------------------------------
-// Perfil + pareja
+// Perfil
 // ---------------------------------------------------------------------------
 
 export async function getProfile(userId: string): Promise<Profile | null> {
@@ -66,45 +64,6 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .eq("id", userId)
     .maybeSingle();
   return (data as Profile) ?? null;
-}
-
-export interface PartnerState {
-  link: PartnerLink | null;
-  partner: { id: string; name: string | null } | null;
-  /** Vista conjunta activa: ambos han dado consentimiento. */
-  sharingActive: boolean;
-}
-
-export async function getPartnerState(userId: string): Promise<PartnerState> {
-  const { data: rawLinks } = await supabaseAdmin()
-    .from("partner_links")
-    .select("*")
-    .or(`requester_id.eq.${userId},partner_id.eq.${userId}`)
-    .order("created_at", { ascending: false });
-  const links = (rawLinks as PartnerLink[]) ?? [];
-  // Prioriza un vínculo aceptado; si no, una invitación pendiente.
-  const link =
-    links.find((l) => l.status === "accepted") ??
-    links.find((l) => l.status === "pending") ??
-    null;
-  if (!link) return { link: null, partner: null, sharingActive: false };
-
-  const partnerId = link.requester_id === userId ? link.partner_id : link.requester_id;
-  const { data: partnerUser } = await supabaseAdmin()
-    .schema("next_auth")
-    .from("users")
-    .select("id, name")
-    .eq("id", partnerId)
-    .maybeSingle();
-
-  const sharingActive =
-    link.status === "accepted" && link.requester_consent && link.partner_consent;
-
-  return {
-    link,
-    partner: partnerUser ? { id: partnerUser.id, name: partnerUser.name } : null,
-    sharingActive,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -770,115 +729,6 @@ export async function getMonthSavings(userId: string, mk: string): Promise<numbe
     .eq("user_id", userId)
     .eq("month", mk);
   return sum((data as { amount: number }[]) ?? []);
-}
-
-// ---------------------------------------------------------------------------
-// Juntos (vista conjunta)
-// ---------------------------------------------------------------------------
-
-export type LinkStatus = "none" | "pending_sent" | "pending_received" | "accepted";
-
-export interface JuntosData {
-  status: LinkStatus;
-  sharingActive: boolean;
-  partnerName: string | null;
-  myConsent: boolean;
-  partnerConsent: boolean;
-  goal:
-    | (SavingsGoal & {
-        pct: number;
-        daysLeft: number;
-        onTrack: boolean;
-        monthlyNeeded: number;
-      })
-    | null;
-  consolidated: { month: string; income: number; expense: number }[] | null;
-}
-
-export async function getJuntos(userId: string): Promise<JuntosData> {
-  const ps = await getPartnerState(userId);
-  const now = new Date();
-
-  const { data: goals } = await supabaseAdmin()
-    .from("savings_goals")
-    .select("*")
-    .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const rawGoal = (goals?.[0] as SavingsGoal) ?? null;
-
-  let goal: JuntosData["goal"] = null;
-  if (rawGoal) {
-    const targetAmount = Number(rawGoal.target_amount);
-    const pct =
-      targetAmount > 0
-        ? Math.min(100, Math.round((Number(rawGoal.current_amount) / targetAmount) * 100))
-        : 0;
-    const target = new Date(rawGoal.target_date);
-    const daysLeft = Math.max(0, Math.ceil((target.getTime() - now.getTime()) / 86400000));
-    const monthsLeft = Math.max(1, daysLeft / 30);
-    const remaining = targetAmount - Number(rawGoal.current_amount);
-    const monthlyNeeded = Math.max(0, Math.round(remaining / monthsLeft));
-    const elapsedRatio = pct / 100;
-    const timeRatio =
-      1 -
-      daysLeft /
-        Math.max(
-          1,
-          Math.ceil((target.getTime() - new Date(rawGoal.created_at).getTime()) / 86400000),
-        );
-    goal = { ...rawGoal, pct, daysLeft, monthlyNeeded, onTrack: elapsedRatio >= timeRatio - 0.05 };
-  }
-
-  let consolidated: JuntosData["consolidated"] = null;
-  if (ps.sharingActive && ps.partner) {
-    const from = isoDate(startOfMonth(subMonths(now, 5)));
-    const { data: tx } = await supabaseAdmin()
-      .from("transactions")
-      .select("*")
-      .in("user_id", [userId, ps.partner.id])
-      .is("vacation_id", null)
-      .gte("occurred_at", from);
-    const all = (tx as Transaction[]) ?? [];
-    consolidated = Array.from({ length: 6 }, (_, i) => {
-      const d = subMonths(startOfMonth(now), 5 - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const inM = all.filter((t) => t.occurred_at.slice(0, 7) === key);
-      return {
-        month: monthShort(d),
-        income: sum(inM.filter((t) => t.type === "income")),
-        expense: sum(inM.filter((t) => t.type === "expense")),
-      };
-    });
-  }
-
-  const myConsent = ps.link
-    ? ps.link.requester_id === userId
-      ? ps.link.requester_consent
-      : ps.link.partner_consent
-    : false;
-  const partnerConsent = ps.link
-    ? ps.link.requester_id === userId
-      ? ps.link.partner_consent
-      : ps.link.requester_consent
-    : false;
-
-  let status: LinkStatus = "none";
-  if (ps.link) {
-    if (ps.link.status === "accepted") status = "accepted";
-    else if (ps.link.status === "pending")
-      status = ps.link.requester_id === userId ? "pending_sent" : "pending_received";
-  }
-
-  return {
-    status,
-    sharingActive: ps.sharingActive,
-    partnerName: ps.partner?.name ?? null,
-    myConsent,
-    partnerConsent,
-    goal,
-    consolidated,
-  };
 }
 
 // ---------------------------------------------------------------------------

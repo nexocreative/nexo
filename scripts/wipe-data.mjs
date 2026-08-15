@@ -14,10 +14,8 @@ const tables = [
   "transactions",
   "recurring_rules",
   "category_budgets",
-  "savings_goals",
   "vacation_periods",
   "ai_recommendations",
-  "partner_links",
 ];
 for (const t of tables) {
   const { error } = await admin.from(t).delete().neq("id", ALL);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { requireUserIdFromRequest } from "@/lib/mobile-auth";
-import { getJuntos, getGrupos } from "@/lib/data/queries";
+import { getGrupos } from "@/lib/data/queries";
 import { assertUnderLimit } from "@/lib/billing";
 import { sendEmail } from "@/lib/email/send";
 import { grupoInviteEmail, grupoGastoEmail } from "@/lib/email/templates";
@@ -11,7 +11,7 @@ import { sendPushNotification } from "@/lib/push";
 export const runtime = "nodejs";
 
 /**
- * Endpoint móvil para "Juntos" (pareja + grupos de gastos compartidos).
+ * Endpoint móvil para "Juntos" (grupos de gastos compartidos).
  * Muchas de estas operaciones (invitar por email, crear cuentas "fantasma"
  * en next_auth.users, repartir/saldar deudas entre miembros) tocan filas de
  * OTROS usuarios o el esquema next_auth, y por eso no se pueden hacer con el
@@ -25,8 +25,8 @@ export async function GET(req: Request) {
   const userId = await requireUserIdFromRequest(req);
   if (!userId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const [juntos, grupos] = await Promise.all([getJuntos(userId), getGrupos(userId)]);
-  return NextResponse.json({ juntos, grupos });
+  const grupos = await getGrupos(userId);
+  return NextResponse.json({ grupos });
 }
 
 async function notifyGrupoInvite(params: {
@@ -116,99 +116,6 @@ async function notifyGrupoGasto(params: {
       });
     }),
   );
-}
-
-// --- Pareja / ahorro conjunto -----------------------------------------------
-
-async function contributeSavings(userId: string, amount: number): Promise<ActionResult> {
-  const value = Number(amount);
-  if (!(value > 0)) return { ok: false, error: "Importe no válido" };
-  const admin = supabaseAdmin();
-  const { data: goals } = await admin.from("savings_goals").select("*").or(`owner_id.eq.${userId},partner_id.eq.${userId}`).limit(1);
-  const goal = goals?.[0];
-  if (!goal) return { ok: false, error: "No hay objetivo de ahorro" };
-  const { error } = await admin.from("savings_goals").update({ current_amount: Number(goal.current_amount) + value }).eq("id", goal.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-async function getActiveLink(userId: string) {
-  const { data: rawLinks } = await supabaseAdmin()
-    .from("partner_links")
-    .select("*")
-    .or(`requester_id.eq.${userId},partner_id.eq.${userId}`)
-    .order("created_at", { ascending: false });
-  const links = rawLinks ?? [];
-  return links.find((l) => l.status === "accepted") ?? links.find((l) => l.status === "pending") ?? null;
-}
-
-async function togglePartnerConsent(userId: string, consent: boolean): Promise<ActionResult> {
-  const link = await getActiveLink(userId);
-  if (!link) return { ok: false, error: "No hay vínculo de pareja" };
-  const isRequester = link.requester_id === userId;
-  const patch = isRequester ? { requester_consent: consent } : { partner_consent: consent };
-  const { error } = await supabaseAdmin().from("partner_links").update(patch).eq("id", link.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-async function invitePartner(userId: string, email: string): Promise<ActionResult> {
-  const clean = email?.trim().toLowerCase();
-  if (!clean || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) return { ok: false, error: "Introduce un email válido" };
-
-  const admin = supabaseAdmin();
-  const { data: user } = await admin.schema("next_auth").from("users").select("id").eq("email", clean).maybeSingle();
-  if (!user) return { ok: false, error: "No existe ninguna cuenta de Nexo con ese email" };
-  if (user.id === userId) return { ok: false, error: "No puedes invitarte a ti misma" };
-
-  const { data: existing } = await admin
-    .from("partner_links")
-    .select("id, status")
-    .or(`and(requester_id.eq.${userId},partner_id.eq.${user.id}),and(requester_id.eq.${user.id},partner_id.eq.${userId})`);
-  if ((existing ?? []).some((l) => l.status !== "rejected")) {
-    return { ok: false, error: "Ya tienes una invitación o vínculo con esa persona" };
-  }
-
-  const { error } = await admin
-    .from("partner_links")
-    .upsert(
-      { requester_id: userId, partner_id: user.id, status: "pending", requester_consent: true, partner_consent: false },
-      { onConflict: "requester_id,partner_id" },
-    );
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-async function respondToInvite(userId: string, accept: boolean): Promise<ActionResult> {
-  const admin = supabaseAdmin();
-  const { data: links } = await admin
-    .from("partner_links")
-    .select("*")
-    .eq("partner_id", userId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const link = links?.[0];
-  if (!link) return { ok: false, error: "No tienes invitaciones pendientes" };
-
-  if (accept) {
-    const { error } = await admin.from("partner_links").update({ status: "accepted", partner_consent: true }).eq("id", link.id);
-    if (error) return { ok: false, error: error.message };
-    await admin.from("profiles").update({ partner_id: link.requester_id }).eq("id", userId);
-    await admin.from("profiles").update({ partner_id: userId }).eq("id", link.requester_id);
-  } else {
-    await admin.from("partner_links").update({ status: "rejected", partner_consent: false }).eq("id", link.id);
-  }
-  return { ok: true };
-}
-
-async function unlinkPartner(userId: string): Promise<ActionResult> {
-  const link = await getActiveLink(userId);
-  if (!link) return { ok: false, error: "No hay vínculo que deshacer" };
-  const admin = supabaseAdmin();
-  await admin.from("partner_links").delete().eq("id", link.id);
-  await admin.from("profiles").update({ partner_id: null, share_consent: false }).in("id", [link.requester_id, link.partner_id]);
-  return { ok: true };
 }
 
 // --- Grupos ------------------------------------------------------------------
@@ -432,21 +339,6 @@ export async function POST(req: Request) {
 
   let result: ActionResult;
   switch (action) {
-    case "contributeSavings":
-      result = await contributeSavings(userId, Number(body.amount));
-      break;
-    case "togglePartnerConsent":
-      result = await togglePartnerConsent(userId, !!body.consent);
-      break;
-    case "invitePartner":
-      result = await invitePartner(userId, String(body.email ?? ""));
-      break;
-    case "respondToInvite":
-      result = await respondToInvite(userId, !!body.accept);
-      break;
-    case "unlinkPartner":
-      result = await unlinkPartner(userId);
-      break;
     case "renameGrupo":
       result = await renameGrupo(userId, String(body.grupoId ?? ""), String(body.name ?? ""));
       break;

@@ -18,9 +18,7 @@ const tables = [
   "category_budgets",
   "recurring_rules",
   "vacation_periods",
-  "savings_goals",
   "ai_recommendations",
-  "partner_links",
 ];
 
 for (const t of tables) {

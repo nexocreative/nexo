@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { requireUserId, getPartnerState, materializeRecurring } from "@/lib/data/queries";
+import { requireUserId, materializeRecurring } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
 import { budgetState, crossedThreshold, getCategory, type BudgetState } from "@/lib/constants";
 import { sendEmail } from "@/lib/email/send";
@@ -519,136 +519,6 @@ export async function deleteSavingsEntry(id: string): Promise<ActionResult> {
     .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard", "layout");
-  return { ok: true };
-}
-
-// --- Ahorro conjunto -------------------------------------------------------
-
-export async function contributeSavings(amount: number): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const value = Number(amount);
-  if (!(value > 0)) return { ok: false, error: "Importe no válido" };
-  const { data: goals } = await supabaseAdmin()
-    .from("savings_goals")
-    .select("*")
-    .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
-    .limit(1);
-  const goal = goals?.[0];
-  if (!goal) return { ok: false, error: "No hay objetivo de ahorro" };
-  const { error } = await supabaseAdmin()
-    .from("savings_goals")
-    .update({ current_amount: Number(goal.current_amount) + value })
-    .eq("id", goal.id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard/juntos");
-  return { ok: true };
-}
-
-// --- Consentimiento de vista conjunta --------------------------------------
-
-export async function togglePartnerConsent(consent: boolean): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const ps = await getPartnerState(userId);
-  if (!ps.link) return { ok: false, error: "No hay vínculo de pareja" };
-  const isRequester = ps.link.requester_id === userId;
-  const patch = isRequester
-    ? { requester_consent: consent }
-    : { partner_consent: consent };
-  const { error } = await supabaseAdmin()
-    .from("partner_links")
-    .update(patch)
-    .eq("id", ps.link.id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard/juntos");
-  return { ok: true };
-}
-
-/** Invita a otra usuaria de Nexo a la vista conjunta por email. */
-export async function invitePartner(email: string): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const clean = email?.trim().toLowerCase();
-  if (!clean || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) {
-    return { ok: false, error: "Introduce un email válido" };
-  }
-
-  const { data: user } = await supabaseAdmin()
-    .schema("next_auth")
-    .from("users")
-    .select("id")
-    .eq("email", clean)
-    .maybeSingle();
-  if (!user) return { ok: false, error: "No existe ninguna cuenta de Nexo con ese email" };
-  if (user.id === userId) return { ok: false, error: "No puedes invitarte a ti misma" };
-
-  const { data: existing } = await supabaseAdmin()
-    .from("partner_links")
-    .select("id, status")
-    .or(
-      `and(requester_id.eq.${userId},partner_id.eq.${user.id}),and(requester_id.eq.${user.id},partner_id.eq.${userId})`,
-    );
-  if ((existing ?? []).some((l) => l.status !== "rejected")) {
-    return { ok: false, error: "Ya tienes una invitación o vínculo con esa persona" };
-  }
-
-  const { error } = await supabaseAdmin()
-    .from("partner_links")
-    .upsert(
-      {
-        requester_id: userId,
-        partner_id: user.id,
-        status: "pending",
-        requester_consent: true,
-        partner_consent: false,
-      },
-      { onConflict: "requester_id,partner_id" },
-    );
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard/juntos");
-  return { ok: true };
-}
-
-/** Acepta o rechaza una invitación de vista conjunta recibida. */
-export async function respondToInvite(accept: boolean): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const { data: links } = await supabaseAdmin()
-    .from("partner_links")
-    .select("*")
-    .eq("partner_id", userId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const link = links?.[0];
-  if (!link) return { ok: false, error: "No tienes invitaciones pendientes" };
-
-  if (accept) {
-    const { error } = await supabaseAdmin()
-      .from("partner_links")
-      .update({ status: "accepted", partner_consent: true })
-      .eq("id", link.id);
-    if (error) return { ok: false, error: error.message };
-    await supabaseAdmin().from("profiles").update({ partner_id: link.requester_id }).eq("id", userId);
-    await supabaseAdmin().from("profiles").update({ partner_id: userId }).eq("id", link.requester_id);
-  } else {
-    await supabaseAdmin()
-      .from("partner_links")
-      .update({ status: "rejected", partner_consent: false })
-      .eq("id", link.id);
-  }
-  revalidatePath("/dashboard/juntos");
-  return { ok: true };
-}
-
-/** Deshace el vínculo de pareja (ambos dejan de compartir). */
-export async function unlinkPartner(): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const ps = await getPartnerState(userId);
-  if (!ps.link) return { ok: false, error: "No hay vínculo que deshacer" };
-  await supabaseAdmin().from("partner_links").delete().eq("id", ps.link.id);
-  await supabaseAdmin()
-    .from("profiles")
-    .update({ partner_id: null, share_consent: false })
-    .in("id", [ps.link.requester_id, ps.link.partner_id]);
-  revalidatePath("/dashboard/juntos");
   return { ok: true };
 }
 

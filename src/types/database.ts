@@ -57,16 +57,6 @@ export interface RecurringRule {
   created_at: string;
 }
 
-export interface SavingsGoal {
-  id: string;
-  owner_id: string;
-  partner_id: string | null; // objetivo compartido
-  name: string;
-  target_amount: number;
-  current_amount: number;
-  target_date: string; // fecha límite (ISO date)
-  created_at: string;
-}
 
 export interface SavingsCategory {
   id: string;
@@ -113,18 +103,6 @@ export interface AiRecommendation {
   title: string;
   content: string;
   severity: "info" | "warning" | "critical";
-  created_at: string;
-}
-
-export type PartnerLinkStatus = "pending" | "accepted" | "rejected";
-
-export interface PartnerLink {
-  id: string;
-  requester_id: string;
-  partner_id: string;
-  status: PartnerLinkStatus;
-  requester_consent: boolean;
-  partner_consent: boolean;
   created_at: string;
 }
 
