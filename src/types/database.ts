@@ -13,8 +13,6 @@ export interface Profile {
   display_name: string | null;
   currency: string; // ISO 4217, p.ej. "EUR"
   monthly_budget: number | null; // límite de gasto mensual global
-  partner_id: string | null; // usuario vinculado (vista conjunta)
-  share_consent: boolean; // consentimiento explícito de compartir
   notification_prefs: { grupo_invite: boolean; grupo_gasto: boolean };
   created_at: string;
 }

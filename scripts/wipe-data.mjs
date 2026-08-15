@@ -25,7 +25,7 @@ for (const t of tables) {
 // Conserva los perfiles (= cuentas) pero limpia sus datos financieros.
 const { error: pErr } = await admin
   .from("profiles")
-  .update({ monthly_budget: null, partner_id: null, share_consent: false })
+  .update({ monthly_budget: null })
   .neq("id", ALL);
 console.log(pErr ? `❌ profiles: ${pErr.message}` : "🧼 profiles reseteados (sin borrar)");
 
