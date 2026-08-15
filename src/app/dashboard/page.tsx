@@ -12,9 +12,14 @@ export default async function DashboardPage() {
   const d = await getDashboard(userId);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      {/* Columna izquierda (2/3): Balance, Últimos movimientos, Ingresos vs Gastos.
+          "contents" en móvil deja que el order-N de cada hijo controle el orden
+          dentro de la única columna; en desktop pasa a ser su propia columna
+          flex, para que su altura no dependa de la columna derecha (y viceversa). */}
+      <div className="contents lg:flex lg:flex-[2] lg:flex-col lg:gap-6">
       {/* Balance del mes (móvil: 1) */}
-      <section className="order-1 rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:order-none lg:col-span-2">
+      <section className="order-1 rounded-3xl border border-border/60 bg-card p-7 shadow-sm lg:order-none">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -51,14 +56,8 @@ export default async function DashboardPage() {
         </Link>
       </section>
 
-      {/* Nómina + Todo bajo control (móvil: 4) */}
-      <div className="order-4 flex flex-col gap-6 lg:order-none lg:self-stretch">
-        {d.nomina?.needsConfirmation && <NominaCard expected={d.nomina.expected} />}
-        <AlertCard d={d} />
-      </div>
-
       {/* Últimos movimientos (móvil: 2) */}
-      <section className="order-2 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none lg:col-span-2 lg:self-stretch">
+      <section className="order-2 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">Últimos movimientos</h3>
           <Link href="/dashboard/movimientos" className="text-sm font-semibold text-primary hover:underline">
@@ -110,13 +109,8 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* Ahorro del mes (móvil: 3) */}
-      <div className="order-3 lg:order-none">
-        <SavingsCard savings={d.savings} />
-      </div>
-
       {/* Ingresos vs Gastos (móvil: 5) */}
-      <section className="order-5 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none lg:col-span-2">
+      <section className="order-5 rounded-3xl border border-border/60 bg-card p-6 shadow-sm lg:order-none">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">Ingresos vs Gastos</h3>
           <div className="flex items-center gap-4 text-xs font-semibold text-muted-foreground">
@@ -135,6 +129,22 @@ export default async function DashboardPage() {
           <IncomeExpenseBars data={d.bars} />
         </div>
       </section>
+      </div>
+
+      {/* Columna derecha (1/3): Nómina/Alerta, Ahorro del mes. Misma lógica
+          de "contents" que la columna izquierda. */}
+      <div className="contents lg:flex lg:flex-1 lg:flex-col lg:gap-6">
+      {/* Nómina + Todo bajo control (móvil: 4) */}
+      <div className="order-4 flex flex-col gap-6 lg:order-none">
+        {d.nomina?.needsConfirmation && <NominaCard expected={d.nomina.expected} />}
+        <AlertCard d={d} />
+      </div>
+
+      {/* Ahorro del mes (móvil: 3) */}
+      <div className="order-3 lg:order-none">
+        <SavingsCard savings={d.savings} />
+      </div>
+      </div>
     </div>
   );
 }
