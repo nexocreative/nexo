@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Users, Check, X } from "lucide-react";
+import { Bell, Users, Check, X } from "lucide-react";
 import { UserNav } from "@/components/dashboard/user-nav";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { respondToGrupoInvite } from "@/app/dashboard/actions";
@@ -72,15 +72,6 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="relative hidden md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Buscar..."
-            className="h-10 w-56 rounded-full border border-border/70 bg-card pl-9 pr-4 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-          />
-        </div>
-
         {/* Campanita con dropdown */}
         <div ref={ref} className="relative">
           <button
