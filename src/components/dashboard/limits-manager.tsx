@@ -69,13 +69,18 @@ function GlobalCard({ global }: { global: { limit: number | null; spent: number;
 
   async function save() {
     setPending(true);
-    const res = await setGlobalBudget(Number(value));
-    setPending(false);
-    if (res.ok) {
-      toast.success("Presupuesto global actualizado");
-      setEditing(false);
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await setGlobalBudget(Number(value));
+      if (res.ok) {
+        toast.success("Presupuesto global actualizado");
+        setEditing(false);
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setPending(false);
+    }
   }
 
   const color = STATE_COLOR[global.state];
@@ -140,13 +145,18 @@ function CategoryLimitRow({ row, isNew = false }: { row: Row; isNew?: boolean })
 
   async function save() {
     setPending(true);
-    const res = await upsertCategoryLimit(row.cat.key, Number(value));
-    setPending(false);
-    if (res.ok) {
-      toast.success(`Límite de ${row.cat.label} actualizado`);
-      setEditing(false);
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await upsertCategoryLimit(row.cat.key, Number(value));
+      if (res.ok) {
+        toast.success(`Límite de ${row.cat.label} actualizado`);
+        setEditing(false);
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setPending(false);
+    }
   }
 
   if (isNew && !editing) {
