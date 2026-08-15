@@ -345,26 +345,36 @@ function CategoryDialog({ editing, onClose }: { editing: CatEditing; onClose: ()
             target_amount: null,
             target_date: null,
           };
-    const res = item ? await updateSavingsCategory(item.id, payload) : await createSavingsCategory(payload);
-    setPending(false);
-    if (res.ok) {
-      toast.success(item ? "Categoría actualizada" : "Categoría creada");
-      onClose();
-      router.refresh();
-    } else if (res.upgradeRequired) upgradeToast(res.error, router);
-    else toast.error(res.error);
+    try {
+      const res = item ? await updateSavingsCategory(item.id, payload) : await createSavingsCategory(payload);
+      if (res.ok) {
+        toast.success(item ? "Categoría actualizada" : "Categoría creada");
+        onClose();
+        router.refresh();
+      } else if (res.upgradeRequired) upgradeToast(res.error, router);
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function remove() {
     if (!item) return;
     setPending(true);
-    const res = await deleteSavingsCategory(item.id);
-    setPending(false);
-    if (res.ok) {
-      toast.success("Categoría eliminada");
-      onClose();
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await deleteSavingsCategory(item.id);
+      if (res.ok) {
+        toast.success("Categoría eliminada");
+        onClose();
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al eliminar");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -533,13 +543,18 @@ function ContributeDialog({
 
   async function save() {
     setPending(true);
-    const res = await addSavingsEntry({ category_id: categoryId, amount: Number(amount), month });
-    setPending(false);
-    if (res.ok) {
-      toast.success(`+${formatEUR(Number(amount))} ahorrado`);
-      onClose();
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await addSavingsEntry({ category_id: categoryId, amount: Number(amount), month });
+      if (res.ok) {
+        toast.success(`+${formatEUR(Number(amount))} ahorrado`);
+        onClose();
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
