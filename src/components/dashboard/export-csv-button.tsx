@@ -14,14 +14,20 @@ function sanitizeCsvCell(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
 
+// ";" (no ",") porque Excel en español usa la coma como separador decimal:
+// con "," como delimitador de columnas, al abrir el CSV con doble clic
+// Excel mete todo en una sola columna en vez de separar los campos.
+const CSV_DELIMITER = ";";
+
 function toCsv(rows: MovementRow[]): string {
   const header = ["Fecha", "Tipo", "Categoría", "Comercio/Descripción", "Importe"];
   const lines = rows.map((r) => {
     const tipo = r.type === "income" ? "Ingreso" : r.type === "savings" ? "Ahorro" : "Gasto";
     const concepto = sanitizeCsvCell(r.merchant || r.description || "").replace(/"/g, '""');
-    return [r.occurred_at, tipo, r.cat.label, `"${concepto}"`, r.amount.toFixed(2)].join(",");
+    const importe = `${r.amount.toFixed(2).replace(".", ",")} €`; // formato decimal español
+    return [r.occurred_at, tipo, r.cat.label, `"${concepto}"`, importe].join(CSV_DELIMITER);
   });
-  return [header.join(","), ...lines].join("\n");
+  return [header.join(CSV_DELIMITER), ...lines].join("\n");
 }
 
 export function ExportCsvButton({ rows, plan }: { rows: MovementRow[]; plan: "free" | "plus" }) {
@@ -39,7 +45,9 @@ export function ExportCsvButton({ rows, plan }: { rows: MovementRow[]; plan: "fr
 
   function download() {
     const csv = toCsv(rows);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    // BOM UTF-8: sin esto Excel no detecta la codificación y los acentos
+    // (p.ej. "Categoría") se ven como caracteres corruptos.
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

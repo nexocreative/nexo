@@ -273,7 +273,10 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
       title: `Ahorro · ${(e.category_id && sCatName.get(e.category_id)) || "Ahorro"}`,
       subtitle: e.source === "plan" ? "Ahorro programado" : "Ahorro",
       amount: Number(e.amount),
-      date: (e.created_at ?? `${e.month}-01`).slice(0, 10),
+      // savings_entries no guarda día, solo mes ("YYYY-MM"): usar created_at
+      // aquí mostraría cuándo se insertó la fila (p.ej. al registrar hoy un
+      // aporte de un mes pasado), no el mes al que realmente pertenece.
+      date: `${e.month}-01`,
       categoryKey: null,
     }));
   const recent = [...recentTxItems, ...recentSavingsItems]
@@ -396,7 +399,9 @@ export async function getMovements(
     categoryName: (e.category_id && catName.get(e.category_id)) || "Ahorro",
     note: e.note,
     source: e.source,
-    date: (e.created_at ?? `${e.month}-01`).slice(0, 10),
+    // savings_entries no guarda día, solo mes ("YYYY-MM"): usar created_at
+    // aquí mostraría cuándo se insertó la fila, no el mes al que pertenece.
+    date: `${e.month}-01`,
   }));
 
   // Firma las rutas de los tickets guardados en Storage (bucket privado) para
