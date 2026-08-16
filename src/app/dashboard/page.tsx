@@ -183,7 +183,7 @@ function SavingsCard({ savings }: { savings: Awaited<ReturnType<typeof getDashbo
 
       {savings.monthlyPlan > 0 && (
         <>
-          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/70">
+          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-card/70">
             <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PALETTE.lila }} />
           </div>
           <p className="mt-2 text-xs font-semibold" style={{ color: PALETTE.lilaInk }}>{pct}% de tu plan mensual</p>
@@ -213,10 +213,13 @@ function AlertCard({ d }: { d: Awaited<ReturnType<typeof getDashboard>> }) {
         }}
       >
         <div className="flex items-start justify-between">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.peach, color: PALETTE.peachInk }}>
+          {/* Color de icono fijo (no PALETTE.peachInk, que cambia con el tema):
+              el fondo PALETTE.peach tampoco cambia, así que el contraste debe
+              mantenerse igual en claro y en oscuro. */}
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.peach, color: "#C47C45" }}>
             <AlertTriangle className="h-5 w-5" />
           </span>
-          <span className="rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: PALETTE.peachInk }}>
+          <span className="rounded-full bg-card/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: PALETTE.peachInk }}>
             {alert.pct}%
           </span>
         </div>
@@ -225,12 +228,12 @@ function AlertCard({ d }: { d: Awaited<ReturnType<typeof getDashboard>> }) {
           Has alcanzado el {alert.pct}% de tu presupuesto en{" "}
           <span className="font-semibold text-foreground">{alert.cat.label}</span>.
         </p>
-        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/70">
+        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-card/70">
           <div className="h-full rounded-full" style={{ width: `${Math.min(100, alert.pct)}%`, backgroundColor: critical ? PALETTE.peachInk : PALETTE.peach }} />
         </div>
         <Link
           href="/dashboard/limites"
-          className="mt-5 block rounded-xl bg-white px-4 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-white/80"
+          className="mt-5 block rounded-xl bg-card px-4 py-2.5 text-center text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-card/80"
         >
           Ajustar presupuesto
         </Link>
@@ -239,7 +242,7 @@ function AlertCard({ d }: { d: Awaited<ReturnType<typeof getDashboard>> }) {
   }
   return (
     <section className="flex h-full flex-col rounded-3xl border border-border/60 p-6 shadow-sm" style={{ background: `linear-gradient(135deg, ${PALETTE.mintSoft}, hsl(var(--card)))` }}>
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.mint, color: PALETTE.mintInk }}>
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.mint, color: "#3E9E7E" }}>
         <ShieldCheck className="h-5 w-5" />
       </span>
       <h3 className="mt-4 text-lg font-bold text-foreground">Todo bajo control</h3>

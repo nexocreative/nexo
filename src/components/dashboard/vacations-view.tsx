@@ -221,7 +221,8 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
         </ProgressRing>
 
         <div className="min-w-0 flex-1">
-          <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ backgroundColor: PALETTE.peach, color: PALETTE.peachInk }}>
+          {/* Color fijo: el fondo PALETTE.peach no cambia con el tema. */}
+          <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ backgroundColor: PALETTE.peach, color: "#C47C45" }}>
             <Palmtree className="h-3.5 w-3.5" /> Modo vacaciones activo
           </span>
           {editingName ? (
@@ -231,7 +232,7 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
                 value={nameValue}
                 onChange={(e) => setNameValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
-                className="min-w-0 flex-1 rounded-xl border border-primary/50 bg-white/70 px-3 py-1.5 text-xl font-extrabold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+                className="min-w-0 flex-1 rounded-xl border border-primary/50 bg-card/70 px-3 py-1.5 text-xl font-extrabold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-primary/20"
               />
               <button onClick={saveName} disabled={savingName} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60">
                 <Check className="h-4 w-4" />
@@ -265,7 +266,7 @@ function ActiveCard({ vac }: { vac: ActiveVac }) {
               <Check className="h-4 w-4" /> Cerrar viaje y contabilizar
             </button>
           ) : (
-            <div className="mt-4 rounded-2xl border border-border/70 bg-white/80 p-4 backdrop-blur-sm">
+            <div className="mt-4 rounded-2xl border border-border/70 bg-card/80 p-4 backdrop-blur-sm">
               <p className="text-sm font-semibold text-foreground">¿Cerrar &ldquo;{vac.name}&rdquo;?</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Se añadirá el total ({formatEUR(vac.spent)}) a tus movimientos generales como gasto &ldquo;Vacaciones&rdquo;.
@@ -836,7 +837,7 @@ function StartCard() {
       <div className="pointer-events-none absolute -bottom-20 right-24 h-44 w-44 rounded-full opacity-40 blur-3xl" style={{ backgroundColor: PALETTE.lila }} />
 
       <div className="relative max-w-md">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.peach, color: PALETTE.peachInk }}>
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.peach, color: "#C47C45" }}>
           <Palmtree className="h-6 w-6" />
         </span>
         <h2 className="mt-4 text-xl font-extrabold tracking-tight">Crea un proyecto de vacaciones</h2>

@@ -50,17 +50,25 @@ export function getCategory(key: string | null | undefined): CategoryDef {
 /**
  * Paleta de marca: tres bases pastel y sus variantes suaves (soft = fondo,
  * ink = texto/acento legible). NO usar colores fuera de estas familias.
+ *
+ * `lila`/`mint`/`peach` son colores saturados fijos: se leen bien tanto en
+ * claro como en oscuro (p.ej. un icono blanco sobre un círculo de color), así
+ * que quedan en hex tal cual. `xxxSoft`/`xxxInk` en cambio se usan como fondo
+ * de tarjeta + texto encima: en hex fijo, el fondo pastel casi blanco se
+ * queda igual en modo oscuro mientras el resto del texto de la tarjeta (que
+ * sí seguía el tema) se volvía blanco sobre blanco. Por eso son referencias a
+ * variables CSS (ver globals.css) con una versión clara y otra oscura.
  */
 export const PALETTE = {
   lila: "#A89FE8",
-  lilaSoft: "#ECE9FB",
-  lilaInk: "#5F54AE",
+  lilaSoft: "hsl(var(--lila-soft))",
+  lilaInk: "hsl(var(--lila-ink))",
   mint: "#A8E6CF",
-  mintSoft: "#E6F7EF",
-  mintInk: "#3E9E7E",
+  mintSoft: "hsl(var(--mint-soft))",
+  mintInk: "hsl(var(--mint-ink))",
   peach: "#FFD3B6",
-  peachSoft: "#FFEEE1",
-  peachInk: "#C47C45",
+  peachSoft: "hsl(var(--peach-soft))",
+  peachInk: "hsl(var(--peach-ink))",
 } as const;
 
 /** Tintes pastel (familias lila/menta/melocotón) para los sectores del donut. */

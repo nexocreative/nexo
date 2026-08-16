@@ -38,6 +38,17 @@
     --sidebar-accent-foreground: 249 42% 44%;
     --sidebar-border: 250 30% 93%;
     --sidebar-ring: 247 61% 77%;
+
+    /* Pastel "Soft" (fondo de tarjeta con tinte) / "Ink" (texto legible sobre
+       ese fondo) de PALETTE en src/lib/constants.ts. Se referencian desde ahí
+       como hsl(var(--x)) para que toda la app responda al tema sin tocar cada
+       componente que los usa. */
+    --lila-soft: 250 70% 95%;
+    --lila-ink: 247 36% 51%;
+    --mint-soft: 152 52% 94%;
+    --mint-ink: 160 44% 43%;
+    --peach-soft: 24 100% 94%;
+    --peach-ink: 26 52% 52%;
   }
 
   .dark {
@@ -73,6 +84,15 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Mismo tinte que en claro, invertido: fondo oscuro con matiz de color
+       (en vez de casi-blanco) y texto claro (en vez de medio-oscuro). */
+    --lila-soft: 250 30% 20%;
+    --lila-ink: 247 65% 80%;
+    --mint-soft: 152 25% 16%;
+    --mint-ink: 160 50% 70%;
+    --peach-soft: 24 35% 18%;
+    --peach-ink: 26 80% 72%;
   }
 }
 

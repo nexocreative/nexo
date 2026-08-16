@@ -399,7 +399,7 @@ function GastosSection() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={preview} alt="Ticket" className="h-12 w-12 rounded-xl object-cover" />
               ) : (
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70" style={{ color: PALETTE.lilaInk }}>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/70" style={{ color: PALETTE.lilaInk }}>
                   <Receipt className="h-5 w-5" />
                 </span>
               )}
@@ -676,7 +676,7 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
                 </p>
                 <p className="mt-1 text-3xl font-extrabold text-foreground">{amount ? `+${formatEUR(Number(amount))}` : "—"}</p>
               </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70" style={{ color: PALETTE.mintInk }}>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/70" style={{ color: PALETTE.mintInk }}>
                 <TrendingUp className="h-5 w-5" />
               </span>
             </div>
