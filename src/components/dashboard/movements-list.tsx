@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, PiggyBank, Trash2, FileSpreadsheet } from "lucide-react";
+import { Paperclip, Camera, Mic, MessageSquare, Repeat, PenLine, Banknote, PiggyBank, Trash2, FileSpreadsheet, ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -72,8 +72,11 @@ function signedAmount(row: MovementRow): number {
   return row.type === "income" ? row.amount : -row.amount;
 }
 
+const PAGE_SIZE = 8;
+
 export function MovementsList({ rows }: { rows: MovementRow[] }) {
   const [open, setOpen] = React.useState<MovementRow | null>(null);
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
 
   if (rows.length === 0) {
     return (
@@ -83,10 +86,13 @@ export function MovementsList({ rows }: { rows: MovementRow[] }) {
     );
   }
 
+  const visibleRows = rows.slice(0, visibleCount);
+  const remaining = rows.length - visibleRows.length;
+
   return (
     <>
       <ul className="divide-y divide-border/60">
-        {rows.map((t) => {
+        {visibleRows.map((t) => {
           const src = SOURCE[t.source] ?? SOURCE.manual;
           return (
             <li key={t.id}>
@@ -116,6 +122,16 @@ export function MovementsList({ rows }: { rows: MovementRow[] }) {
           );
         })}
       </ul>
+
+      {remaining > 0 && (
+        <button
+          onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
+          className="mt-3 flex w-full items-center justify-center gap-1 py-2 text-sm font-semibold text-primary hover:underline"
+        >
+          Ver {Math.min(remaining, PAGE_SIZE)} más
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      )}
 
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="sm:max-w-md">

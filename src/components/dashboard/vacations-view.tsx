@@ -590,6 +590,8 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
   );
 }
 
+const EXPENSES_PAGE_SIZE = 8;
+
 function ExpensesList({ vac }: { vac: ActiveVac }) {
   const router = useRouter();
   const [editId, setEditId] = React.useState<string | null>(null);
@@ -600,6 +602,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
   const [editNotas, setEditNotas] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = React.useState(EXPENSES_PAGE_SIZE);
 
   function openEdit(e: ExpenseRow) {
     setEditId(e.id);
@@ -652,7 +655,7 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
         <p className="mt-4 text-sm text-muted-foreground">Aún no hay gastos en este viaje. Añade el primero.</p>
       ) : (
         <ul className="mt-3 divide-y divide-border/60">
-          {vac.expenses.map((e) => (
+          {vac.expenses.slice(0, visibleCount).map((e) => (
             <li key={e.id} className="min-w-0">
               {editId === e.id ? (
                 <div className="space-y-2 py-3">
@@ -772,6 +775,16 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {vac.expenses.length > visibleCount && (
+        <button
+          onClick={() => setVisibleCount((v) => v + EXPENSES_PAGE_SIZE)}
+          className="mt-2 flex w-full items-center justify-center gap-1 py-2 text-sm font-semibold text-primary hover:underline"
+        >
+          Ver {Math.min(vac.expenses.length - visibleCount, EXPENSES_PAGE_SIZE)} más
+          <ChevronDown className="h-4 w-4" />
+        </button>
       )}
 
       {/* Modal de confirmación de borrado */}
