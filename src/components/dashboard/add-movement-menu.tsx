@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -111,12 +112,7 @@ export function AddMovementMenu({ incomeCategories }: { incomeCategories: string
               </div>
               <div className="flex-1">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-                />
+                <DatePicker value={date} onChange={setDate} className="mt-1.5" />
               </div>
             </div>
 

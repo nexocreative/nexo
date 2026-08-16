@@ -30,6 +30,7 @@ import {
   createTransaction,
 } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
+import { DatePicker } from "@/components/ui/date-picker";
 import { upgradeToast } from "@/lib/upgrade-toast";
 import type { GruposData, GrupoConDetalle } from "@/types/database";
 
@@ -533,11 +534,12 @@ function GrupoDetail({
                 onChange={(e) => setGastoAmount(e.target.value)}
                 className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
               />
-              <input
-                type="date"
+              <DatePicker
                 value={gastoDate}
-                onChange={(e) => setGastoDate(e.target.value)}
-                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                onChange={setGastoDate}
+                showIcon={false}
+                formatStr="d MMM"
+                className="w-1/2 px-3 py-2"
               />
             </div>
             <div className="relative">

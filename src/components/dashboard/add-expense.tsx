@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp, FileSpreadsheet, ArrowLeft } from "lucide-react";
 import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ImportarSection } from "@/components/dashboard/import-section";
 import { createTransaction, createIncome, type BudgetAlert } from "@/app/dashboard/actions";
 import { formatEUR, todayLocalISO } from "@/lib/format";
@@ -354,13 +355,7 @@ function GastosSection() {
               </div>
               <div>
                 <label htmlFor="gasto-fecha" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
-                <input
-                  id="gasto-fecha"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-                />
+                <DatePicker id="gasto-fecha" value={date} onChange={setDate} className="mt-1.5" />
               </div>
             </>
           )}
@@ -619,13 +614,7 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
               </div>
               <div>
                 <label htmlFor="ingreso-fecha" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</label>
-                <input
-                  id="ingreso-fecha"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-                />
+                <DatePicker id="ingreso-fecha" value={date} onChange={setDate} className="mt-1.5" />
               </div>
             </>
           )}

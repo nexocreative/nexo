@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SavingsBars } from "@/components/charts/savings-bars";
+import { DatePicker } from "@/components/ui/date-picker";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -453,12 +454,7 @@ function CategoryDialog({ editing, onClose }: { editing: CatEditing; onClose: ()
               </div>
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha límite</label>
-                <input
-                  type="date"
-                  value={targetDate}
-                  onChange={(e) => setTargetDate(e.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
-                />
+                <DatePicker value={targetDate} onChange={setTargetDate} className="mt-1.5" />
               </div>
               <p className="text-xs text-muted-foreground">
                 {goalPreview

@@ -13,17 +13,29 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  captionLayout,
   ...props
 }: CalendarProps) {
+  // react-day-picker (sin su CSS por defecto) dibuja el <select> real de
+  // mes/año Y, debajo, una capa decorativa que en su hoja de estilos original
+  // queda invisible superpuesta encima del <select> (truco típico de
+  // "select nativo estilizado"). Sin esa hoja de estilos, esa capa
+  // (classNames.caption_label, aria-hidden) se ve como texto duplicado
+  // debajo del desplegable — se oculta solo cuando hay desplegables.
+  const isDropdown = captionLayout === "dropdown" || captionLayout === "dropdown-buttons";
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      captionLayout={captionLayout}
       className={cn("p-3", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption_label: isDropdown ? "hidden" : "text-sm font-medium",
+        caption_dropdowns: "flex items-center gap-1.5",
+        dropdown: "rounded-md border border-input bg-card px-1.5 py-1 text-sm outline-none focus:border-primary/50",
+        vhidden: "hidden",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),

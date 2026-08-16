@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FileSpreadsheet, Upload, Loader2, Check, AlertTriangle, CalendarClock, ChevronDown } from "lucide-react";
 import { CATEGORIES, PALETTE } from "@/lib/constants";
 import { createTransactionsBulk } from "@/app/dashboard/actions";
+import { DatePicker } from "@/components/ui/date-picker";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { upgradeToast } from "@/lib/upgrade-toast";
@@ -248,12 +249,14 @@ export function ImportarSection() {
                         )}
                       </div>
                       <div role="cell">
-                        <input
-                          type="date"
+                        <DatePicker
                           value={r.fecha}
-                          onChange={(e) => updateRow(i, { fecha: e.target.value })}
+                          onChange={(v) => updateRow(i, { fecha: v })}
+                          showIcon={false}
+                          formatStr="d MMM"
+                          placeholder="—"
                           className={cn(
-                            "w-full rounded-lg border bg-transparent px-2 py-1.5 text-xs outline-none",
+                            "rounded-lg bg-transparent px-2 py-1.5 text-xs",
                             dateInvalid ? "border-destructive/60" : "border-border",
                           )}
                         />

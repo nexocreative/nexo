@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, Pencil, Trash2, X, ChevronDown, type LucideIcon } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -547,11 +548,12 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
                 placeholder="Importe €"
                 className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
               />
-              <input
-                type="date"
+              <DatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+                onChange={setDate}
+                showIcon={false}
+                formatStr="d MMM"
+                className="w-1/2 px-3 py-2.5"
               />
             </div>
             <div className="relative">
@@ -669,11 +671,12 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                       placeholder="Importe €"
                       className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
                     />
-                    <input
-                      type="date"
+                    <DatePicker
                       value={editDate}
-                      onChange={(ev) => setEditDate(ev.target.value)}
-                      className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                      onChange={setEditDate}
+                      showIcon={false}
+                      formatStr="d MMM"
+                      className="w-1/2 px-3 py-2"
                     />
                   </div>
                   <div className="relative">
@@ -864,20 +867,18 @@ function StartCard() {
           <div className="flex gap-3">
             <div className="w-1/2">
               <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Inicio</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
-              />
+              <DatePicker value={startDate} onChange={setStartDate} showIcon={false} formatStr="d MMM yyyy" className="mt-1 px-3 py-2.5" />
             </div>
             <div className="w-1/2">
               <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fin (opcional)</label>
-              <input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-muted-foreground outline-none focus:border-primary/50"
+                onChange={setEndDate}
+                showIcon={false}
+                formatStr="d MMM yyyy"
+                placeholder="Sin fecha"
+                clearable
+                className="mt-1 px-3 py-2.5 text-muted-foreground"
               />
             </div>
           </div>
