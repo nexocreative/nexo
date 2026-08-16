@@ -114,20 +114,30 @@ export function SidebarNav({
           })}
         </nav>
 
-        {/* Separado del resto: no es una sección más, es el upsell de la cuenta. */}
+        {/* Separado del resto: no es una sección más, es el upsell de la cuenta.
+            Mismo patrón activo/inactivo que el resto del nav (bg-accent solo
+            si estás en esa página) para que no parezca que ya estás dentro
+            de Nexo Plus solo por el color; lo distinto es el icono en su
+            propia insignia lila. */}
         <div className="border-t border-border/60 pt-3">
           <WithTooltip collapsed={collapsed} label="Nexo Plus">
             <Link
               href="/dashboard/plus"
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition hover:brightness-90",
+                "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
                 collapsed && "justify-center px-0",
-                pathname.startsWith("/dashboard/plus") && "ring-1 ring-primary/40",
+                pathname.startsWith("/dashboard/plus")
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground",
               )}
-              style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}
             >
-              <Sparkles className="h-[18px] w-[18px] shrink-0" />
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+                style={{ backgroundColor: PALETTE.lila, color: "#fff" }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </span>
               {!collapsed && "Nexo Plus"}
             </Link>
           </WithTooltip>
