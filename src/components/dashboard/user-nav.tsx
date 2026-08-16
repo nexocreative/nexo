@@ -1,9 +1,10 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { LogOut, Moon, Settings, Sun } from "lucide-react";
+import { DoorOpen, LogOut, Moon, Settings, Sun } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -18,6 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export function UserNav({
   name,
@@ -29,9 +37,11 @@ export function UserNav({
   image?: string | null;
 }) {
   const { theme, setTheme } = useTheme();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   const initials = (name ?? email ?? "U").slice(0, 2).toUpperCase();
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
@@ -72,11 +82,45 @@ export function UserNav({
           Cambiar tema
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void signOut({ callbackUrl: "/" })}>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setConfirmOpen(true);
+          }}
+        >
           <LogOut className="mr-2 h-4 w-4" />
           Cerrar sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader className="items-center space-y-3 text-center sm:items-center sm:text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+            <DoorOpen className="h-8 w-8" />
+          </span>
+          <DialogTitle>¿Cerrar sesión?</DialogTitle>
+          <DialogDescription>
+            Tendrás que volver a iniciar sesión para acceder a tu cuenta.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-2 flex gap-3">
+          <button
+            onClick={() => setConfirmOpen(false)}
+            className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => void signOut({ callbackUrl: "/" })}
+            className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
