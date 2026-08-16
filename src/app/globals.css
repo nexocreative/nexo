@@ -58,19 +58,24 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    /* Mismo lila de marca que en claro (--primary: 247 61% 77%), no el gris
+       genérico de shadcn: un lila medio-claro ya contrasta bien sobre el
+       fondo casi negro. El texto del botón pasa a morado muy oscuro en vez
+       de blanco: contra este lila da ~7:1 (AA de sobra) frente a ~2.5:1 que
+       daría blanco — mejor accesibilidad que copiar tal cual el claro. */
+    --primary: 247 61% 77%;
+    --primary-foreground: 249 30% 14%;
+    --secondary: 248 24% 16%;
+    --secondary-foreground: 250 45% 85%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 248 30% 18%;
+    --accent-foreground: 250 70% 88%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --ring: 247 61% 77%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -78,12 +83,12 @@
     --chart-5: 340 75% 55%;
     --sidebar: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 247 61% 77%;
+    --sidebar-primary-foreground: 249 30% 14%;
+    --sidebar-accent: 248 30% 18%;
+    --sidebar-accent-foreground: 250 70% 88%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 247 61% 77%;
 
     /* Mismo tinte que en claro, invertido: fondo oscuro con matiz de color
        (en vez de casi-blanco) y texto claro (en vez de medio-oscuro). */
@@ -115,6 +120,14 @@
       radial-gradient(60% 50% at 12% 0%, hsl(247 70% 95% / 0.9), transparent 70%),
       radial-gradient(55% 45% at 100% 0%, hsl(158 60% 92% / 0.7), transparent 70%),
       radial-gradient(45% 40% at 90% 8%, hsl(24 100% 94% / 0.5), transparent 70%);
+  }
+  /* En oscuro los mismos tintes casi-blancos se veían como manchas claras
+     sobre el fondo negro: aquí son un resplandor de color, no un lavado. */
+  .dark .nexo-canvas {
+    background-image:
+      radial-gradient(60% 50% at 12% 0%, hsl(247 65% 28% / 0.55), transparent 70%),
+      radial-gradient(55% 45% at 100% 0%, hsl(158 55% 22% / 0.45), transparent 70%),
+      radial-gradient(45% 40% at 90% 8%, hsl(24 80% 24% / 0.35), transparent 70%);
   }
   /* Gradiente del hero "Balance Total" (lila -> menta). */
   .nexo-hero-gradient {
