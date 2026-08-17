@@ -16,7 +16,7 @@ const FEATURES: Feature[] = [
   { icon: PiggyBank, title: "Ahorro por categorías", desc: "Aparta cada mes y mira crecer tu colchón sin pensarlo." },
   { icon: Bell, title: "Límites y alertas", desc: "Avisos al 75%, 90% y 100% de tu presupuesto." },
   { icon: BarChart3, title: "Gráficas claras", desc: "Ingresos vs gastos, categorías y tendencias de un vistazo." },
-  { icon: Users, title: "En pareja", desc: "Vista conjunta del dinero de los dos, con consentimiento." },
+  { icon: Users, title: "En conjunto", desc: "Crea grupos para repartir gastos compartidos y saldar cuentas." },
 ];
 
 export function CardCarousel() {

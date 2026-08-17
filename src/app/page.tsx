@@ -80,7 +80,7 @@ const testimonials = [
   {
     quote: "En tres meses ahorré para mis vacaciones casi sin enterarme. Brutal.",
     author: "Ana · Profesora",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&q=80&auto=format&fit=crop",
     alt: "Retrato de Ana",
   },
 ];
@@ -113,15 +113,15 @@ export default function HomePage() {
     <main className="flex min-h-screen flex-col bg-background">
       {/* Header flotante */}
       <header className="sticky top-0 z-50 px-4 pt-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-2.5 shadow-lg shadow-foreground/5 backdrop-blur-xl">
+        <div className="mx-auto grid max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-2.5 shadow-lg shadow-foreground/5 backdrop-blur-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-nexo.svg" alt="Nexo" width={96} height={31} className="h-auto w-[96px]" />
+          <img src="/logo-nexo.svg" alt="Nexo" width={96} height={31} className="h-auto w-[96px] justify-self-start" />
           <nav className="hidden items-center gap-1 md:flex">
             <a href="#funciones" className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">Funciones</a>
             <a href="#opiniones" className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">Opiniones</a>
             <a href="#faq" className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">Preguntas</a>
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-self-end gap-2">
             <Link href="/login" className="hidden rounded-xl px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted sm:block">
               Entrar
             </Link>
@@ -191,7 +191,7 @@ export default function HomePage() {
               <span className="font-semibold text-foreground">Nexo convierte ese caos en claridad.</span>
             </p>
             <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-              Ingresos, gastos, ahorro, vacaciones y la vista en pareja: todo conectado en un mismo
+              Ingresos, gastos, ahorro, vacaciones y la vista en conjunto: todo conectado en un mismo
               sitio. <span className="font-medium text-foreground">Toca cada órbita para verlo.</span>
             </p>
           </div>
