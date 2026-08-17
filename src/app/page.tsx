@@ -92,7 +92,7 @@ const faqs = [
   },
   {
     q: "¿Cómo registra la IA mis gastos?",
-    a: "Con una foto del ticket (GPT-4o Vision lee los datos) o por voz (Whisper transcribe y GPT-4o estructura importe, comercio y categoría). Siempre puedes revisarlo antes de guardar.",
+    a: "Con una foto del ticket o por voz: la IA de Nexo extrae el importe, el comercio y la categoría por ti. Siempre puedes revisarlo antes de guardar. Pruébalo gratis y, si te convence, pásate a Nexo Plus para usarlo sin límite.",
   },
   {
     q: "¿Mis datos están seguros?",

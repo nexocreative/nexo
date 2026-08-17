@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileSpreadsheet, Upload, Loader2, Check, AlertTriangle, CalendarClock, ChevronDown } from "lucide-react";
+import { FileSpreadsheet, Upload, Loader2, Check, AlertTriangle, CalendarClock, ChevronDown, Lock } from "lucide-react";
 import { CATEGORIES, PALETTE } from "@/lib/constants";
 import { createTransactionsBulk } from "@/app/dashboard/actions";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -43,7 +44,7 @@ function isValidDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
 }
 
-export function ImportarSection() {
+export function ImportarSection({ remainingTrial }: { remainingTrial: number | null }) {
   const router = useRouter();
   const [analyzing, setAnalyzing] = React.useState(false);
   const [pending, setPending] = React.useState(false);
@@ -139,29 +140,45 @@ export function ImportarSection() {
         <p className="mt-1 text-sm text-muted-foreground">
          Importa un archivo Excel o CSV de tu banco. La IA detectará los movimientos automáticamente y podrás revisarlos y editarlos antes de importarlos.
         </p>
-        <div className="mt-4 rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFile(f); }}
-          />
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}>
-            {analyzing ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileSpreadsheet className="h-6 w-6" />}
-          </span>
-          <p className="mt-4 text-sm font-semibold text-foreground">
-            {analyzing ? "Analizando el extracto con IA…" : "Sube el extracto de tu banco"}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">Excel o CSV (.xlsx, .xls, .csv) · máx. 5 MB</p>
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={analyzing}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-          >
-            <Upload className="h-4 w-4" /> {analyzing ? "Procesando…" : "Subir archivo"}
-          </button>
-        </div>
+        {remainingTrial === 0 ? (
+          <div className="mt-4 rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}>
+              <Lock className="h-6 w-6" />
+            </span>
+            <p className="mt-4 text-sm font-semibold text-foreground">Has usado tu prueba gratis para importar extractos</p>
+            <p className="mt-1 text-xs text-muted-foreground">Hazte Nexo Plus para usarlo sin límite.</p>
+            <Link
+              href="/dashboard/plus"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Ver Nexo Plus
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFile(f); }}
+            />
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}>
+              {analyzing ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileSpreadsheet className="h-6 w-6" />}
+            </span>
+            <p className="mt-4 text-sm font-semibold text-foreground">
+              {analyzing ? "Analizando el extracto con IA…" : "Sube el extracto de tu banco"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Excel o CSV (.xlsx, .xls, .csv) · máx. 5 MB</p>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={analyzing}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              <Upload className="h-4 w-4" /> {analyzing ? "Procesando…" : "Subir archivo"}
+            </button>
+          </div>
+        )}
       </section>
 
       {rows.length > 0 && (

@@ -18,10 +18,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const gate = await requirePlusForAi(userId);
+  const gate = await requirePlusForAi(userId, "voice");
   if (!gate.ok) {
     return NextResponse.json(
-      { error: gate.error, upgradeRequired: gate.reason === "not_plus" },
+      { error: gate.error, upgradeRequired: gate.reason === "trial_exhausted" },
       { status: gate.status },
     );
   }

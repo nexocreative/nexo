@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp, FileSpreadsheet, ArrowLeft } from "lucide-react";
+import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp, FileSpreadsheet, ArrowLeft, Lock } from "lucide-react";
 import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -29,6 +30,28 @@ function notifyBudgetAlerts(alerts?: BudgetAlert[]) {
 type ExpenseMethod = "photo" | "voice" | "manual";
 type IncomeMethod = "voice" | "manual";
 
+/** Pruebas gratuitas de IA restantes por función; `null` si el usuario es Plus (sin límite de pruebas). */
+export type AiTrial = Record<"ticket" | "voice" | "import", number> | null;
+
+/** Sustituye al captor de IA (foto/voz/importar) cuando ya no quedan pruebas gratis, para no hacer perder tiempo al usuario con una petición que sabemos que va a fallar. */
+function AiTrialLocked({ label }: { label: string }) {
+  return (
+    <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
+      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+        <Lock className="h-6 w-6" />
+      </span>
+      <p className="mt-4 text-sm font-semibold text-foreground">Has usado tus pruebas gratis para {label}</p>
+      <p className="mt-1 text-xs text-muted-foreground">Hazte Nexo Plus para usarlo sin límite.</p>
+      <Link
+        href="/dashboard/plus"
+        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+      >
+        Ver Nexo Plus
+      </Link>
+    </div>
+  );
+}
+
 const NEW_CATEGORY = "__new__";
 
 const expenseMethods: { key: ExpenseMethod; title: string; desc: string; icon: typeof Camera; bg: string; fg: string }[] = [
@@ -42,7 +65,7 @@ const incomeMethods: { key: IncomeMethod; title: string; desc: string; icon: typ
   { key: "manual", title: "Manual", desc: "Introduce los detalles paso a paso.", icon: PenLine, bg: PALETTE.peachSoft, fg: PALETTE.peachInk },
 ];
 
-export function AddExpense({ incomeCategories }: { incomeCategories: string[] }) {
+export function AddExpense({ incomeCategories, aiTrial }: { incomeCategories: string[]; aiTrial: AiTrial }) {
   const [tab, setTab] = React.useState<"gastos" | "ingresos" | "importar">("gastos");
 
   return (
@@ -90,17 +113,17 @@ export function AddExpense({ incomeCategories }: { incomeCategories: string[] })
       </div>
 
       {tab === "gastos" ? (
-        <GastosSection />
+        <GastosSection aiTrial={aiTrial} />
       ) : tab === "ingresos" ? (
-        <IngresosSection incomeCategories={incomeCategories} />
+        <IngresosSection incomeCategories={incomeCategories} aiTrial={aiTrial} />
       ) : (
-        <ImportarSection />
+        <ImportarSection remainingTrial={aiTrial?.import ?? null} />
       )}
     </div>
   );
 }
 
-function GastosSection() {
+function GastosSection({ aiTrial }: { aiTrial: AiTrial }) {
   const router = useRouter();
   const [method, setMethod] = React.useState<ExpenseMethod>("manual");
   const [category, setCategory] = React.useState("supermercado");
@@ -273,7 +296,9 @@ function GastosSection() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="space-y-5">
-          {showCapture && method === "photo" ? (
+          {showCapture && method === "photo" && aiTrial && aiTrial.ticket <= 0 ? (
+            <AiTrialLocked label="escanear tickets" />
+          ) : showCapture && method === "photo" ? (
             <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
               <input
                 ref={fileRef}
@@ -298,6 +323,8 @@ function GastosSection() {
                 <Upload className="h-4 w-4" /> {analyzing ? "Procesando…" : "Subir / hacer foto"}
               </button>
             </div>
+          ) : showCapture && method === "voice" && aiTrial && aiTrial.voice <= 0 ? (
+            <AiTrialLocked label="registrar por voz" />
           ) : showCapture && method === "voice" ? (
             <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
               <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
@@ -426,7 +453,7 @@ function GastosSection() {
   );
 }
 
-function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
+function IngresosSection({ incomeCategories, aiTrial }: { incomeCategories: string[]; aiTrial: AiTrial }) {
   const router = useRouter();
   const [method, setMethod] = React.useState<IncomeMethod>("manual");
   const [amount, setAmount] = React.useState("");
@@ -557,7 +584,9 @@ function IngresosSection({ incomeCategories }: { incomeCategories: string[] }) {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="space-y-5">
-          {showCapture ? (
+          {showCapture && aiTrial && aiTrial.voice <= 0 ? (
+            <AiTrialLocked label="registrar por voz" />
+          ) : showCapture ? (
             <div className="rounded-3xl border border-dashed border-primary/30 bg-accent/40 p-8 text-center">
               <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
                 {recording && <span className="absolute inset-0 animate-ping rounded-2xl" style={{ backgroundColor: PALETTE.lila, opacity: 0.4 }} />}

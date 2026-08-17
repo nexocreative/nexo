@@ -17,14 +17,14 @@ const FEATURES = [
   { icon: Download, label: "Exportar movimientos a CSV" },
 ];
 
-/** Debe reflejar FREE_LIMITS en src/lib/billing.ts (server-only, no importable en este componente cliente). */
+/** Debe reflejar FREE_LIMITS y FREE_AI_TRIAL_USES en src/lib/billing.ts (server-only, no importable en este componente cliente). */
 const COMPARISON: { label: string; free: string | boolean; plus: string | boolean }[] = [
   { label: "Registro manual y presupuestos", free: true, plus: true },
   { label: "Grupos, vacaciones y ahorro", free: "1 activo", plus: "Ilimitados" },
   { label: "Historial de movimientos", free: "3 meses", plus: "Completo" },
-  { label: "Escanear tickets con IA", free: false, plus: true },
-  { label: "Registrar gastos por voz", free: false, plus: true },
-  { label: "Importar extractos bancarios con IA", free: false, plus: true },
+  { label: "Escanear tickets con IA", free: "2 pruebas gratis", plus: true },
+  { label: "Registrar gastos por voz", free: "2 pruebas gratis", plus: true },
+  { label: "Importar extractos bancarios con IA", free: "1 prueba gratis", plus: true },
   { label: "Exportar a CSV", free: false, plus: true },
 ];
 

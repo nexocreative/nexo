@@ -73,10 +73,10 @@ export async function POST(req: Request) {
   }
   const userId = session.user.id;
 
-  const gate = await requirePlusForAi(userId);
+  const gate = await requirePlusForAi(userId, "import");
   if (!gate.ok) {
     return NextResponse.json(
-      { error: gate.error, upgradeRequired: gate.reason === "not_plus" },
+      { error: gate.error, upgradeRequired: gate.reason === "trial_exhausted" },
       { status: gate.status },
     );
   }

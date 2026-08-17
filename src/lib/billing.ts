@@ -17,6 +17,21 @@ export const PLUS_HISTORY_MONTHS = 24;
 /** Máximo de usos de IA (ticket + voz + import combinados) al mes, incluso siendo Plus. */
 export const AI_MONTHLY_QUOTA = 60;
 
+export type AiKind = "ticket" | "voice" | "import";
+
+/** Pruebas gratuitas de IA por función, para el plan gratuito, de por vida (no se comparten entre funciones). */
+export const FREE_AI_TRIAL_USES: Record<AiKind, number> = {
+  ticket: 2,
+  voice: 2,
+  import: 1,
+};
+
+const AI_KIND_LABELS: Record<AiKind, string> = {
+  ticket: "escanear tickets",
+  voice: "registrar por voz",
+  import: "importar extractos",
+};
+
 /** Plan actual del usuario a partir de `subscriptions.status`. */
 export async function getUserPlan(userId: string): Promise<Plan> {
   const { data } = await supabaseAdmin()
@@ -32,21 +47,59 @@ function startOfCurrentMonthIso(): string {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
-/** Comprueba que el usuario puede usar una función de IA (plan Plus + cuota mensual). */
+/**
+ * Pruebas gratuitas de IA que le quedan al usuario, por función.
+ * Devuelve `null` si es Plus (sin límite de pruebas, solo cuota mensual).
+ */
+export async function getFreeAiTrialRemaining(userId: string): Promise<Record<AiKind, number> | null> {
+  const plan = await getUserPlan(userId);
+  if (plan === "plus") return null;
+
+  const kinds = Object.keys(FREE_AI_TRIAL_USES) as AiKind[];
+  const entries = await Promise.all(
+    kinds.map(async (kind) => {
+      const { count } = await supabaseAdmin()
+        .from("ai_usage_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("kind", `${kind}_success`);
+      return [kind, Math.max(0, FREE_AI_TRIAL_USES[kind] - (count ?? 0))] as const;
+    }),
+  );
+  return Object.fromEntries(entries) as Record<AiKind, number>;
+}
+
+/** Comprueba que el usuario puede usar una función de IA (Plus con cuota mensual, o gratis con pruebas limitadas por función). */
 export async function requirePlusForAi(
   userId: string,
+  kind: AiKind,
 ): Promise<
   | { ok: true }
-  | { ok: false; status: 402; error: string; reason: "not_plus" | "quota_exceeded" }
+  | { ok: false; status: 402; error: string; reason: "quota_exceeded" | "trial_exhausted" }
 > {
   const plan = await getUserPlan(userId);
-  if (plan !== "plus") {
-    return { ok: false, status: 402, error: "Esta función es exclusiva de Nexo Plus.", reason: "not_plus" };
-  }
 
   // Solo cuentan los usos que terminaron con éxito (kind "..._success",
   // registrados por recordAiSuccess en lib/rate-limit.ts). Un análisis
-  // fallido no debe descontar cupo mensual al usuario.
+  // fallido no debe descontar cupo al usuario.
+  if (plan !== "plus") {
+    const { count } = await supabaseAdmin()
+      .from("ai_usage_events")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("kind", `${kind}_success`);
+
+    if ((count ?? 0) >= FREE_AI_TRIAL_USES[kind]) {
+      return {
+        ok: false,
+        status: 402,
+        error: `Has usado tus pruebas gratuitas para ${AI_KIND_LABELS[kind]}. Hazte Nexo Plus para uso ilimitado.`,
+        reason: "trial_exhausted",
+      };
+    }
+    return { ok: true };
+  }
+
   const { count } = await supabaseAdmin()
     .from("ai_usage_events")
     .select("id", { count: "exact", head: true })
