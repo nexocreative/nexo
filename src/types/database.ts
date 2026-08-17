@@ -150,12 +150,27 @@ export interface GrupoGastoParte {
   email: string | null;
 }
 
-// Balance neto de un miembro con respecto al usuario actual en un grupo
+// Balance neto de un miembro con respecto al usuario actual en un grupo.
+// Se calcula con un algoritmo de simplificación de deudas sobre el neto
+// global de cada miembro del grupo (no solo la deuda directa por pares), así
+// que puede haber menos entradas (o net=0 para todos) de las que habría
+// sumando las deudas de cada gasto una a una.
 export interface GrupoBalance {
   user_id: string;
   display_name: string | null;
   email: string | null;
   net: number; // positivo = te deben, negativo = debes
+}
+
+// Pago registrado para saldar un balance simplificado (puede cancelar deuda
+// que en realidad involucra a un tercero, ver supabase/migrations/0016).
+export interface GrupoSettlement {
+  id: string;
+  grupo_id: string;
+  from_user: string;
+  to_user: string;
+  amount: number;
+  created_at: string;
 }
 
 // Grupo con todo el detalle necesario para la UI

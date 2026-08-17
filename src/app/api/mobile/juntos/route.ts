@@ -298,28 +298,22 @@ async function deleteGrupoGasto(userId: string, gastoId: string): Promise<Action
   return { ok: true };
 }
 
-async function settleWithMember(userId: string, grupoId: string, otherUserId: string): Promise<ActionResult> {
+// Registra el pago en el ledger de liquidaciones (ver settleWithMember en
+// dashboard/actions.ts para la explicación de por qué no se marcan partes
+// de gastos concretos como saldadas).
+async function settleWithMember(userId: string, grupoId: string, otherUserId: string, net: number): Promise<ActionResult> {
   const admin = supabaseAdmin();
 
-  const { data: gastosByOther } = await admin.from("grupo_gastos").select("id").eq("grupo_id", grupoId).eq("paid_by", otherUserId);
-  if (gastosByOther && gastosByOther.length > 0) {
-    await admin
-      .from("grupo_gasto_partes")
-      .update({ settled: true, settled_at: new Date().toISOString() })
-      .in("gasto_id", gastosByOther.map((g) => g.id))
-      .eq("user_id", userId)
-      .eq("settled", false);
-  }
+  const amount = Math.round(Math.abs(net) * 100) / 100;
+  if (!(amount > 0)) return { ok: true };
 
-  const { data: gastosByMe } = await admin.from("grupo_gastos").select("id").eq("grupo_id", grupoId).eq("paid_by", userId);
-  if (gastosByMe && gastosByMe.length > 0) {
-    await admin
-      .from("grupo_gasto_partes")
-      .update({ settled: true, settled_at: new Date().toISOString() })
-      .in("gasto_id", gastosByMe.map((g) => g.id))
-      .eq("user_id", otherUserId)
-      .eq("settled", false);
-  }
+  const fromUser = net > 0 ? otherUserId : userId;
+  const toUser = net > 0 ? userId : otherUserId;
+
+  const { error } = await admin
+    .from("grupo_settlements")
+    .insert({ grupo_id: grupoId, from_user: fromUser, to_user: toUser, amount });
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
@@ -364,7 +358,7 @@ export async function POST(req: Request) {
       result = await deleteGrupoGasto(userId, String(body.gastoId ?? ""));
       break;
     case "settleWithMember":
-      result = await settleWithMember(userId, String(body.grupoId ?? ""), String(body.otherUserId ?? ""));
+      result = await settleWithMember(userId, String(body.grupoId ?? ""), String(body.otherUserId ?? ""), Number(body.net ?? 0));
       break;
     default:
       return NextResponse.json({ error: "Acción desconocida" }, { status: 400 });

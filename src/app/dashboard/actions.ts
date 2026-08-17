@@ -1112,41 +1112,28 @@ export async function deleteGrupoGasto(gastoId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function settleWithMember(grupoId: string, otherUserId: string): Promise<ActionResult> {
+/**
+ * Salda un balance ya simplificado por debt-simplify (ver lib/data/queries.ts).
+ * Ese balance puede no corresponder a ninguna deuda directa real entre estas
+ * dos personas (p.ej. en un ciclo A→B→C→A), así que en vez de intentar
+ * marcar partes de gastos concretos como saldadas, se registra el pago en
+ * `grupo_settlements`: un ledger que se resta al recalcular los netos.
+ */
+export async function settleWithMember(grupoId: string, otherUserId: string, net: number): Promise<ActionResult> {
   const userId = await requireUserId();
   const supabase = supabaseAdmin();
 
-  // Gastos pagados por el otro donde yo participo (yo le debo a él)
-  const { data: gastosByOther } = await supabase
-    .from("grupo_gastos")
-    .select("id")
-    .eq("grupo_id", grupoId)
-    .eq("paid_by", otherUserId);
+  const amount = Math.round(Math.abs(net) * 100) / 100;
+  if (!(amount > 0)) return { ok: true };
 
-  if (gastosByOther && gastosByOther.length > 0) {
-    await supabase
-      .from("grupo_gasto_partes")
-      .update({ settled: true, settled_at: new Date().toISOString() })
-      .in("gasto_id", gastosByOther.map((g) => g.id))
-      .eq("user_id", userId)
-      .eq("settled", false);
-  }
+  // net > 0 en mi vista = "me deben" -> me paga otherUserId. net < 0 = "le debo" -> pago yo.
+  const fromUser = net > 0 ? otherUserId : userId;
+  const toUser = net > 0 ? userId : otherUserId;
 
-  // Gastos pagados por mí donde el otro participa (él me debe a mí)
-  const { data: gastosByMe } = await supabase
-    .from("grupo_gastos")
-    .select("id")
-    .eq("grupo_id", grupoId)
-    .eq("paid_by", userId);
-
-  if (gastosByMe && gastosByMe.length > 0) {
-    await supabase
-      .from("grupo_gasto_partes")
-      .update({ settled: true, settled_at: new Date().toISOString() })
-      .in("gasto_id", gastosByMe.map((g) => g.id))
-      .eq("user_id", otherUserId)
-      .eq("settled", false);
-  }
+  const { error } = await supabase
+    .from("grupo_settlements")
+    .insert({ grupo_id: grupoId, from_user: fromUser, to_user: toUser, amount });
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/dashboard/juntos");
   return { ok: true };

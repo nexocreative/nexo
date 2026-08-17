@@ -32,7 +32,26 @@ import {
 import { formatEUR } from "@/lib/format";
 import { DatePicker } from "@/components/ui/date-picker";
 import { upgradeToast } from "@/lib/upgrade-toast";
+import { PALETTE } from "@/lib/constants";
 import type { GruposData, GrupoConDetalle } from "@/types/database";
+
+const EPS = 0.01;
+/** Color de texto de un balance: verde si le deben, melocotón si debe, gris si está exactamente en paz. */
+function balanceColor(net: number): string {
+  if (net > EPS) return PALETTE.mintInk;
+  if (net < -EPS) return PALETTE.peachInk;
+  return "hsl(var(--muted-foreground))";
+}
+
+const BALANCE_MINT = "rgb(142 223 193)";
+const BALANCE_PEACH = "rgb(244 197 166)";
+
+/** Color de relleno (barras, puntos de leyenda): el pastel base, no el "ink" reservado para texto. */
+function balanceFillColor(net: number): string {
+  if (net > EPS) return BALANCE_MINT;
+  if (net < -EPS) return BALANCE_PEACH;
+  return "hsl(var(--muted-foreground) / 0.4)";
+}
 
 interface Props {
   data: GruposData;
@@ -46,41 +65,13 @@ function fmtDay(iso: string) {
   });
 }
 
-function BarWithTooltip({
-  pct,
-  isPositive,
-  shouldPay,
-  totalGastado,
-}: {
-  pct: number;
-  isPositive: boolean;
-  shouldPay: number;
-  totalGastado: number;
-}) {
-  const linePct = totalGastado > 0 ? Math.min((shouldPay / totalGastado) * 100, 100) : 0;
-
+function ContributionBar({ pct, net }: { pct: number; net: number }) {
   return (
-    <div className="relative h-3 w-full">
-      <div className="relative h-full w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={`h-full rounded-full transition-all ${isPositive ? "bg-emerald-400" : "bg-red-400"}`}
-          style={{ width: `${Math.min(pct, 100)}%` }}
-        />
-      </div>
-      {/* Zona hover alrededor de la línea */}
-      {totalGastado > 0 && (
-        <div
-          className="group absolute top-0 flex h-full -translate-x-1/2 cursor-default items-center justify-center px-2"
-          style={{ left: `${linePct}%` }}
-        >
-          <div className="h-full w-0.5 bg-foreground/40" />
-          <div className="pointer-events-none absolute bottom-full mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-2 py-1 text-xs font-semibold text-background group-hover:block"
-            style={{ left: "50%" }}
-          >
-            Su parte: {formatEUR(shouldPay)}
-          </div>
-        </div>
-      )}
+    <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-full rounded-full transition-all"
+        style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: balanceFillColor(net) }}
+      />
     </div>
   );
 }
@@ -235,7 +226,7 @@ function GrupoDetail({
   async function handleSettle(otherUserId: string, net: number, addToMovements: boolean) {
     setSettling(otherUserId);
     try {
-      const res = await settleWithMember(grupo.id, otherUserId);
+      const res = await settleWithMember(grupo.id, otherUserId, net);
       if (res.ok && addToMovements && Math.abs(net) >= 0.01) {
         const otherName = grupo.members.find((m) => m.user_id === otherUserId)?.display_name
           ?? grupo.members.find((m) => m.user_id === otherUserId)?.email
@@ -415,7 +406,8 @@ function GrupoDetail({
                         </span>
                         {Math.abs(m.net) >= 0.01 && (
                           <span
-                            className={`ml-2 text-xs font-semibold ${isPositive ? "text-emerald-600" : "text-red-500"}`}
+                            className="ml-2 text-xs font-semibold"
+                            style={{ color: balanceColor(m.net) }}
                           >
                             {isPositive ? "+" : ""}{formatEUR(m.net)}
                           </span>
@@ -423,12 +415,7 @@ function GrupoDetail({
                       </div>
                     </div>
                     {/* Barra */}
-                    <BarWithTooltip
-                      pct={m.pct}
-                      isPositive={isPositive}
-                      shouldPay={m.shouldPay}
-                      totalGastado={totalGastado}
-                    />
+                    <ContributionBar pct={m.pct} net={m.net} />
                   </div>
                 );
               })}
@@ -437,16 +424,12 @@ function GrupoDetail({
           {/* Leyenda */}
           <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: BALANCE_MINT }} />
               Pagó de más
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-400" />
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: BALANCE_PEACH }} />
               Pagó de menos
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-0.5 bg-foreground/30" />
-              Parte justa
             </span>
           </div>
         </section>
@@ -467,13 +450,8 @@ function GrupoDetail({
                     {b.display_name ?? b.email}
                   </p>
                   <p
-                    className={`text-xs font-medium ${
-                      Math.abs(b.net) < 0.01
-                        ? "text-muted-foreground"
-                        : b.net > 0
-                          ? "text-emerald-600"
-                          : "text-red-500"
-                    }`}
+                    className={`text-xs font-medium ${Math.abs(b.net) < 0.01 ? "text-muted-foreground" : ""}`}
+                    style={Math.abs(b.net) < 0.01 ? undefined : { color: balanceColor(b.net) }}
                   >
                     {Math.abs(b.net) < 0.01
                       ? "En paz"
@@ -740,7 +718,7 @@ function GrupoDetail({
           <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
             <h4 className="text-base font-bold text-foreground">¿Marcar como saldado?</h4>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Se marcarán todos los gastos pendientes entre vosotros como saldados.
+              Se registrará este pago para saldar el balance.
               {" "}<span className="font-semibold text-foreground">
                 {settleConfirm.net < 0
                   ? `Debes ${formatEUR(Math.abs(settleConfirm.net))} a ${settleConfirm.name ?? "esta persona"}.`
@@ -872,7 +850,10 @@ export function JuntosView({ data, currentUserId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           {data.grupos.length > 0 && (
-            <p className={`text-sm font-medium ${Math.abs(myNetTotal) < 0.01 ? "text-muted-foreground" : myNetTotal > 0 ? "text-emerald-600" : "text-red-500"}`}>
+            <p
+              className={`text-sm font-medium ${Math.abs(myNetTotal) < 0.01 ? "text-muted-foreground" : ""}`}
+              style={Math.abs(myNetTotal) < 0.01 ? undefined : { color: balanceColor(myNetTotal) }}
+            >
               {Math.abs(myNetTotal) < 0.01
                 ? "Todo saldado"
                 : myNetTotal > 0
@@ -1000,9 +981,7 @@ export function JuntosView({ data, currentUserId }: Props) {
                     <span className="text-sm font-medium text-muted-foreground">En paz</span>
                   ) : (
                     <>
-                      <p
-                        className={`text-sm font-bold ${myNet > 0 ? "text-emerald-600" : "text-red-500"}`}
-                      >
+                      <p className="text-sm font-bold" style={{ color: balanceColor(myNet) }}>
                         {myNet > 0 ? "+" : ""}{formatEUR(myNet)}
                       </p>
                       <p className="text-xs text-muted-foreground">

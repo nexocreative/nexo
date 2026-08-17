@@ -27,6 +27,7 @@ import {
 } from "@/lib/constants";
 import { monthShort, monthKey } from "@/lib/format";
 import { FREE_LIMITS, PLUS_HISTORY_MONTHS, type Plan } from "@/lib/billing";
+import { simplifyDebts } from "@/lib/debt-simplify";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -933,7 +934,7 @@ export async function getGrupos(userId: string): Promise<GruposData> {
   }
 
   // Datos de los grupos
-  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }] =
+  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }, { data: settlementsRaw }] =
     await Promise.all([
       supabase.from("grupos").select("*").in("id", gruposAceptadosIds),
       supabase
@@ -945,7 +946,20 @@ export async function getGrupos(userId: string): Promise<GruposData> {
         .select("*")
         .in("grupo_id", gruposAceptadosIds)
         .order("occurred_at", { ascending: false }),
+      supabase
+        .from("grupo_settlements")
+        .select("*")
+        .in("grupo_id", gruposAceptadosIds),
     ]);
+
+  const settlements = (settlementsRaw ?? []) as {
+    id: string;
+    grupo_id: string;
+    from_user: string;
+    to_user: string;
+    amount: number;
+    created_at: string;
+  }[];
 
   // Re-fetch partes solo si hay gastos
   const gastos = (gastosRaw ?? []) as {
@@ -1033,30 +1047,45 @@ export async function getGrupos(userId: string): Promise<GruposData> {
           paid_by_name: userMap.get(gasto.paid_by)?.name ?? null,
         }));
 
-      // Calcular balances: para cada miembro aceptado (distinto de mí), cuánto me debe o le debo
+      // Balance neto GLOBAL de cada miembro aceptado (no solo frente a mí):
+      // lo que le deben en total menos lo que debe en total, sumando todos
+      // los gastos del grupo (sin filtrar por contraparte).
       const aceptados = grupoMiembros.filter((m) => m.status === "accepted");
-      const balances: GrupoBalance[] = aceptados
-        .filter((m) => m.user_id !== userId)
-        .map((m) => {
-          // Lo que me debe: gastos que yo pagué donde él participa y no está settled
-          const meDebeAmount = grupoGastos
-            .filter((gasto) => gasto.paid_by === userId)
-            .flatMap((gasto) => gasto.partes)
-            .filter((p) => p.user_id === m.user_id && !p.settled)
-            .reduce((acc, p) => acc + p.amount, 0);
+      const gastosSettlements = settlements.filter((s) => s.grupo_id === g.id);
+      const rawNets = new Map<string, number>(aceptados.map((m) => [m.user_id, 0]));
 
-          // Lo que le debo: gastos que él pagó donde yo participo y no está settled
-          const leDebAmount = grupoGastos
-            .filter((gasto) => gasto.paid_by === m.user_id)
-            .flatMap((gasto) => gasto.partes)
-            .filter((p) => p.user_id === userId && !p.settled)
-            .reduce((acc, p) => acc + p.amount, 0);
+      for (const gasto of grupoGastos) {
+        for (const parte of gasto.partes) {
+          if (parte.settled || parte.user_id === gasto.paid_by) continue;
+          rawNets.set(gasto.paid_by, (rawNets.get(gasto.paid_by) ?? 0) + parte.amount);
+          rawNets.set(parte.user_id, (rawNets.get(parte.user_id) ?? 0) - parte.amount);
+        }
+      }
+      // Pagos ya registrados para saldar cuentas (ver simplifyDebts más abajo):
+      // reducen lo que debe quien pagó y lo que le deben a quien cobró.
+      for (const s of gastosSettlements) {
+        rawNets.set(s.from_user, (rawNets.get(s.from_user) ?? 0) + s.amount);
+        rawNets.set(s.to_user, (rawNets.get(s.to_user) ?? 0) - s.amount);
+      }
 
+      // Algoritmo de simplificación de deudas sobre el grupo completo: da el
+      // número mínimo de pagos para saldar todas las cuentas (los ciclos de
+      // deuda entre 3+ personas se cancelan solos, ver src/lib/debt-simplify.ts).
+      const groupTx = simplifyDebts(
+        Array.from(rawNets.entries()).map(([uid, net]) => ({ userId: uid, net })),
+      );
+
+      // "balances" son las transacciones simplificadas en las que participo,
+      // vistas desde mi perspectiva (igual forma que antes: net>0 = me deben).
+      const balances: GrupoBalance[] = groupTx
+        .filter((tx) => tx.from === userId || tx.to === userId)
+        .map((tx) => {
+          const otherId = tx.from === userId ? tx.to : tx.from;
           return {
-            user_id: m.user_id,
-            display_name: m.display_name,
-            email: m.email,
-            net: Math.round((meDebeAmount - leDebAmount) * 100) / 100,
+            user_id: otherId,
+            display_name: userMap.get(otherId)?.name ?? null,
+            email: userMap.get(otherId)?.email ?? null,
+            net: tx.from === userId ? -tx.amount : tx.amount,
           };
         });
 
