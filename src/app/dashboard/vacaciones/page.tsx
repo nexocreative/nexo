@@ -7,6 +7,8 @@ export default async function VacacionesPage() {
 
   return (
     <VacationsView
+      currentUserId={userId}
+      availableGrupos={v.availableGrupos}
       active={
         v.active
           ? {
@@ -19,6 +21,7 @@ export default async function VacacionesPage() {
               start_date: v.active.start_date,
               end_date: v.active.end_date,
               expenses: v.active.expenses,
+              grupo: v.active.grupo,
             }
           : null
       }
@@ -31,6 +34,7 @@ export default async function VacacionesPage() {
         start_date: c.start_date,
         end_date: c.end_date,
         expenses: c.expenses,
+        summary: c.summary,
       }))}
     />
   );

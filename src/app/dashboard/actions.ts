@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { requireUserId, materializeRecurring } from "@/lib/data/queries";
+import { requireUserId, materializeRecurring, getGrupos } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
 import { budgetState, crossedThreshold, getCategory, type BudgetState } from "@/lib/constants";
 import { sendEmail } from "@/lib/email/send";
@@ -600,6 +600,43 @@ export async function startVacation(input: {
   return { ok: true };
 }
 
+/**
+ * Vincula (o desvincula, con grupoId=null) un viaje a un grupo de "En
+ * conjunto", para poder ver quién debe a quién en la pestaña Saldos.
+ */
+export async function linkVacationGrupo(vacationId: string, grupoId: string | null): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const admin = supabaseAdmin();
+
+  const { data: vac } = await admin
+    .from("vacation_periods")
+    .select("id")
+    .eq("id", vacationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!vac) return { ok: false, error: "Proyecto de vacaciones no encontrado" };
+
+  if (grupoId) {
+    const { data: miembro } = await admin
+      .from("grupo_miembros")
+      .select("id")
+      .eq("grupo_id", grupoId)
+      .eq("user_id", userId)
+      .eq("status", "accepted")
+      .maybeSingle();
+    if (!miembro) return { ok: false, error: "No eres miembro de ese grupo" };
+  }
+
+  const { error } = await admin
+    .from("vacation_periods")
+    .update({ grupo_id: grupoId })
+    .eq("id", vacationId)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/vacaciones");
+  return { ok: true };
+}
+
 /** Añade un gasto interno a un proyecto de vacaciones (no cuenta en la
  *  contabilidad general hasta que se cierra el viaje). */
 const vacExpenseSchema = z.object({
@@ -650,12 +687,22 @@ export async function closeVacation(id: string): Promise<ActionResult> {
 
   const { data: vac } = await supabaseAdmin()
     .from("vacation_periods")
-    .select("id, name, status")
+    .select("id, name, status, grupo_id")
     .eq("id", id)
     .eq("user_id", userId)
     .maybeSingle();
   if (!vac) return { ok: false, error: "Proyecto de vacaciones no encontrado" };
   if (vac.status !== "active") return { ok: false, error: "El viaje ya está cerrado" };
+
+  // Si el viaje tiene un grupo vinculado, guarda una foto de cómo quedaron
+  // los saldos en el momento de cerrar (el grupo en sí sigue vivo e
+  // independiente del viaje, así que sus saldos podrían seguir cambiando).
+  let grupoSnapshot: { grupo_name: string; balances: unknown[] } | null = null;
+  if (vac.grupo_id) {
+    const gruposData = await getGrupos(userId);
+    const grupo = gruposData.grupos.find((g) => g.id === vac.grupo_id);
+    if (grupo) grupoSnapshot = { grupo_name: grupo.name, balances: grupo.balances };
+  }
 
   const { data: vtx } = await supabaseAdmin()
     .from("transactions")
@@ -684,7 +731,7 @@ export async function closeVacation(id: string): Promise<ActionResult> {
     if (txErr) return { ok: false, error: txErr.message };
   }
 
-  const summary = { spent, count: expenses.length, closed_at: new Date().toISOString() };
+  const summary = { spent, count: expenses.length, closed_at: new Date().toISOString(), grupo_snapshot: grupoSnapshot };
   const { error } = await supabaseAdmin()
     .from("vacation_periods")
     .update({ status: "closed", end_date: today, summary })

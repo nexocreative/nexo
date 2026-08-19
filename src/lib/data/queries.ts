@@ -755,10 +755,13 @@ export interface VacationView extends VacationPeriod {
   pct: number;
   txCount: number;
   expenses: VacationExpenseView[];
+  grupo: GrupoConDetalle | null;
 }
 export interface VacationsData {
   active: VacationView | null;
   closed: VacationView[];
+  /** Grupos de "En conjunto" a los que el usuario pertenece, para vincular a un viaje. */
+  availableGrupos: { id: string; name: string }[];
 }
 
 interface VacTx {
@@ -780,7 +783,12 @@ export async function getVacations(userId: string): Promise<VacationsData> {
     .order("start_date", { ascending: false });
 
   const list = (periods as VacationPeriod[]) ?? [];
-  if (list.length === 0) return { active: null, closed: [] };
+
+  const gruposData = await getGrupos(userId);
+  const grupoMap = new Map(gruposData.grupos.map((g) => [g.id, g]));
+  const availableGrupos = gruposData.grupos.map((g) => ({ id: g.id, name: g.name }));
+
+  if (list.length === 0) return { active: null, closed: [], availableGrupos };
 
   const { data: tx } = await supabaseAdmin()
     .from("transactions")
@@ -810,12 +818,14 @@ export async function getVacations(userId: string): Promise<VacationsData> {
         amount: Number(r.amount),
         occurred_at: r.occurred_at,
       })),
+      grupo: v.grupo_id ? grupoMap.get(v.grupo_id) ?? null : null,
     };
   };
 
   return {
     active: list.filter((v) => v.status === "active").map(enrich)[0] ?? null,
     closed: list.filter((v) => v.status === "closed").map(enrich),
+    availableGrupos,
   };
 }
 
@@ -934,7 +944,7 @@ export async function getGrupos(userId: string): Promise<GruposData> {
   }
 
   // Datos de los grupos
-  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }, { data: settlementsRaw }] =
+  const [{ data: gruposRaw }, { data: miembrosRaw }, { data: gastosRaw }, { data: settlementsRaw }, { data: vacationLinksRaw }] =
     await Promise.all([
       supabase.from("grupos").select("*").in("id", gruposAceptadosIds),
       supabase
@@ -950,7 +960,20 @@ export async function getGrupos(userId: string): Promise<GruposData> {
         .from("grupo_settlements")
         .select("*")
         .in("grupo_id", gruposAceptadosIds),
+      supabase
+        .from("vacation_periods")
+        .select("grupo_id, name")
+        .eq("user_id", userId)
+        .in("grupo_id", gruposAceptadosIds),
     ]);
+
+  // Nombre del viaje vinculado a cada grupo (si lo hay), para mostrar un
+  // aviso en "En conjunto" y que no parezca un grupo suelto/duplicado.
+  const vacationNameByGrupo = new Map(
+    ((vacationLinksRaw ?? []) as { grupo_id: string | null; name: string }[])
+      .filter((v): v is { grupo_id: string; name: string } => !!v.grupo_id)
+      .map((v) => [v.grupo_id, v.name]),
+  );
 
   const settlements = (settlementsRaw ?? []) as {
     id: string;
@@ -1089,7 +1112,15 @@ export async function getGrupos(userId: string): Promise<GruposData> {
           };
         });
 
-      return { id: g.id, name: g.name, created_by: g.created_by, members: grupoMiembros, gastos: grupoGastos, balances };
+      return {
+        id: g.id,
+        name: g.name,
+        created_by: g.created_by,
+        members: grupoMiembros,
+        gastos: grupoGastos,
+        balances,
+        linkedVacationName: vacationNameByGrupo.get(g.id) ?? null,
+      };
     },
   );
 

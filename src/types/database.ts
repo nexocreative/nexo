@@ -92,6 +92,7 @@ export interface VacationPeriod {
   status: VacationStatus;
   summary: Record<string, unknown> | null; // resumen al cerrar
   created_at: string;
+  grupo_id: string | null; // grupo de "En conjunto" vinculado para la pestaña Saldos
 }
 
 export interface AiRecommendation {
@@ -181,6 +182,8 @@ export interface GrupoConDetalle {
   members: GrupoMiembro[];
   gastos: (GrupoGasto & { partes: GrupoGastoParte[]; paid_by_name: string | null })[];
   balances: GrupoBalance[];
+  /** Nombre del viaje de Vacaciones vinculado a este grupo, si lo hay. */
+  linkedVacationName: string | null;
 }
 
 // Invitación pendiente de responder

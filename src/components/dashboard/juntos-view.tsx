@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Users,
@@ -16,6 +16,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   Pencil,
+  Palmtree,
 } from "lucide-react";
 import {
   createGrupo,
@@ -33,11 +34,12 @@ import { formatEUR } from "@/lib/format";
 import { DatePicker } from "@/components/ui/date-picker";
 import { upgradeToast } from "@/lib/upgrade-toast";
 import { PALETTE } from "@/lib/constants";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { GruposData, GrupoConDetalle } from "@/types/database";
 
 const EPS = 0.01;
 /** Color de texto de un balance: verde si le deben, melocotón si debe, gris si está exactamente en paz. */
-function balanceColor(net: number): string {
+export function balanceColor(net: number): string {
   if (net > EPS) return PALETTE.mintInk;
   if (net < -EPS) return PALETTE.peachInk;
   return "hsl(var(--muted-foreground))";
@@ -87,15 +89,13 @@ function Avatar({ name, email }: { name: string | null; email: string | null }) 
 
 // ─── Vista detalle de un grupo ────────────────────────────────────────────────
 
-function GrupoDetail({
-  grupo,
-  currentUserId,
-  onBack,
-}: {
-  grupo: GrupoConDetalle;
-  currentUserId: string;
-  onBack: () => void;
-}) {
+/**
+ * Cuerpo de un grupo (resumen, balances, gastos compartidos, miembros), sin
+ * la cabecera con nombre/menú de grupo. Se reutiliza tanto en la vista
+ * "En conjunto" (dentro de GrupoDetail) como en la pestaña "Saldos" de
+ * vacaciones, cuando un viaje está vinculado a un grupo.
+ */
+export function GrupoBody({ grupo, currentUserId }: { grupo: GrupoConDetalle; currentUserId: string }) {
   const router = useRouter();
   const [showInvite, setShowInvite] = React.useState(false);
   const [inviteEmail, setInviteEmail] = React.useState("");
@@ -105,21 +105,6 @@ function GrupoDetail({
   const [settling, setSettling] = React.useState<string | null>(null);
   const [settleConfirm, setSettleConfirm] = React.useState<{ userId: string; net: number; name: string | null } | null>(null);
   const [settleAddToMovements, setSettleAddToMovements] = React.useState(false);
-  const [leaving, setLeaving] = React.useState(false);
-  const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
-  const [showMenu, setShowMenu] = React.useState(false);
-  const [editingName, setEditingName] = React.useState(false);
-  const [nameValue, setNameValue] = React.useState(grupo.name);
-  const [savingName, setSavingName] = React.useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   // Form state para añadir gasto
   const acceptedMembers = grupo.members.filter((m) => m.status === "accepted");
@@ -252,40 +237,6 @@ function GrupoDetail({
     }
   }
 
-  async function handleSaveName() {
-    if (!nameValue.trim() || nameValue.trim() === grupo.name) { setEditingName(false); return; }
-    setSavingName(true);
-    try {
-      const res = await renameGrupo(grupo.id, nameValue);
-      if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
-      else toast.error(res.error);
-    } catch {
-      toast.error("Error de conexión al guardar");
-    } finally {
-      setSavingName(false);
-      setEditingName(false);
-    }
-  }
-
-  async function handleLeave() {
-    setLeaving(true);
-    try {
-      const isCreator = grupo.created_by === currentUserId;
-      const res = isCreator ? await deleteGrupo(grupo.id) : await leaveGrupo(grupo.id);
-      if (res.ok) {
-        toast.success(isCreator ? "Grupo eliminado" : "Has abandonado el grupo");
-        onBack();
-        router.refresh();
-      } else {
-        toast.error(res.error);
-      }
-    } catch {
-      toast.error("Error de conexión");
-    } finally {
-      setLeaving(false);
-    }
-  }
-
   const nonZeroBalances = grupo.balances.filter((b) => Math.abs(b.net) >= 0.01);
 
   const acceptedAll = grupo.members.filter((m) => m.status === "accepted");
@@ -313,65 +264,6 @@ function GrupoDetail({
 
   return (
     <div className="space-y-6">
-      {/* Cabecera */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        {editingName ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <input
-              autoFocus
-              value={nameValue}
-              onChange={(e) => setNameValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
-              className="min-w-0 flex-1 rounded-xl border border-primary/50 bg-card px-3 py-1.5 text-xl font-extrabold outline-none"
-            />
-            <button onClick={handleSaveName} disabled={savingName} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-60">
-              <Check className="h-4 w-4" />
-            </button>
-            <button onClick={() => { setEditingName(false); setNameValue(grupo.name); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold tracking-tight text-foreground">
-            {grupo.name}
-          </h1>
-        )}
-        <div ref={menuRef} className="relative">
-          <button
-            onClick={() => setShowMenu((v) => !v)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {showMenu && (
-            <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-border bg-card py-1 shadow-xl">
-              {grupo.created_by === currentUserId && (
-                <button
-                  onClick={() => { setShowMenu(false); setNameValue(grupo.name); setEditingName(true); }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Editar nombre
-                </button>
-              )}
-              <button
-                onClick={() => { setShowMenu(false); setShowLeaveConfirm(true); }}
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-muted"
-              >
-                <LogOut className="h-4 w-4" />
-                {grupo.created_by === currentUserId ? "Eliminar grupo" : "Abandonar grupo"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Resumen visual */}
       {totalGastado > 0 && (
         <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
@@ -463,7 +355,7 @@ function GrupoDetail({
                 {Math.abs(b.net) >= 0.01 && (
                   <button
                     onClick={() => { setSettleAddToMovements(false); setSettleConfirm({ userId: b.user_id, net: b.net, name: b.display_name ?? b.email }); }}
-                    className="shrink-0 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+                    className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
                   >
                     Saldar
                   </button>
@@ -485,96 +377,101 @@ function GrupoDetail({
           </h2>
           <button
             onClick={() => setShowAddGasto((v) => !v)}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
+            className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
             Añadir gasto
           </button>
         </div>
 
-        {/* Formulario añadir gasto */}
-        {showAddGasto && (
-          <div className="mx-6 mb-5 space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
-            <input
-              autoFocus
-              placeholder="Descripción"
-              value={gastoDesc}
-              onChange={(e) => setGastoDesc(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
-            />
-            <div className="flex gap-2">
+        {/* Modal añadir gasto */}
+        <Dialog open={showAddGasto} onOpenChange={setShowAddGasto}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Añadir gasto</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
               <input
-                type="number"
-                placeholder="Importe (€)"
-                min="0.01"
-                step="0.01"
-                value={gastoAmount}
-                onChange={(e) => setGastoAmount(e.target.value)}
-                className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                autoFocus
+                placeholder="Descripción"
+                value={gastoDesc}
+                onChange={(e) => setGastoDesc(e.target.value)}
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
               />
-              <DatePicker
-                value={gastoDate}
-                onChange={setGastoDate}
-                showIcon={false}
-                formatStr="d MMM"
-                className="w-1/2 px-3 py-2"
-              />
-            </div>
-            <div className="relative">
-              <select
-                value={gastoPaidBy}
-                onChange={(e) => setGastoPaidBy(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
-              >
-                {acceptedMembers.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.user_id === currentUserId
-                      ? "Yo"
-                      : (m.display_name ?? m.email ?? m.user_id)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Participan:</p>
-              <div className="flex flex-wrap gap-2">
-                {acceptedMembers.map((m) => {
-                  const checked = gastoParticipants.includes(m.user_id);
-                  return (
-                    <button
-                      key={m.user_id}
-                      type="button"
-                      onClick={() => toggleParticipant(m.user_id)}
-                      className={`rounded-xl border px-3 py-1 text-xs font-medium transition-colors ${
-                        checked
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-card text-muted-foreground"
-                      }`}
-                    >
-                      {m.user_id === currentUserId ? "Yo" : (m.display_name ?? m.email)}
-                    </button>
-                  );
-                })}
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="Importe (€)"
+                  min="0.01"
+                  step="0.01"
+                  value={gastoAmount}
+                  onChange={(e) => setGastoAmount(e.target.value)}
+                  className="w-1/2 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/50"
+                />
+                <DatePicker
+                  value={gastoDate}
+                  onChange={setGastoDate}
+                  showIcon={false}
+                  formatStr="d MMM"
+                  className="w-1/2 px-3 py-2"
+                />
+              </div>
+              <div className="relative">
+                <select
+                  value={gastoPaidBy}
+                  onChange={(e) => setGastoPaidBy(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                >
+                  {acceptedMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.user_id === currentUserId
+                        ? "Yo"
+                        : (m.display_name ?? m.email ?? m.user_id)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Participan:</p>
+                <div className="flex flex-wrap gap-2">
+                  {acceptedMembers.map((m) => {
+                    const checked = gastoParticipants.includes(m.user_id);
+                    return (
+                      <button
+                        key={m.user_id}
+                        type="button"
+                        onClick={() => toggleParticipant(m.user_id)}
+                        className={`rounded-xl border px-3 py-1 text-xs font-medium transition-colors ${
+                          checked
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-card text-muted-foreground"
+                        }`}
+                      >
+                        {m.user_id === currentUserId ? "Yo" : (m.display_name ?? m.email)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setShowAddGasto(false)}
+                  className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAddGasto}
+                  disabled={addingGasto || !gastoDesc.trim() || !(Number(gastoAmount) > 0) || gastoParticipants.length === 0}
+                  className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {addingGasto ? "Guardando..." : "Guardar"}
+                </button>
               </div>
             </div>
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setShowAddGasto(false)}
-                className="flex-1 rounded-xl border border-border py-2 text-sm font-semibold text-foreground hover:bg-muted"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddGasto}
-                disabled={addingGasto || !gastoDesc.trim() || !(Number(gastoAmount) > 0) || gastoParticipants.length === 0}
-                className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {addingGasto ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {grupo.gastos.length === 0 ? (
           <p className="px-6 pb-6 text-sm text-muted-foreground">No hay gastos aún.</p>
@@ -612,7 +509,7 @@ function GrupoDetail({
                       onClick={() => setDeleteGastoId(gasto.id)}
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   )}
                 </li>
@@ -630,7 +527,7 @@ function GrupoDetail({
           </h2>
           <button
             onClick={() => setShowInvite((v) => !v)}
-            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80"
+            className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80"
           >
             <UserPlus className="h-4 w-4" />
             Invitar persona
@@ -684,33 +581,6 @@ function GrupoDetail({
           ))}
         </ul>
       </section>
-
-      {/* Modal confirmar abandonar/eliminar grupo */}
-      {showLeaveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
-            <h4 className="text-base font-bold text-foreground">
-              {grupo.created_by === currentUserId ? "¿Eliminar el grupo?" : "¿Abandonar el grupo?"}
-            </h4>
-            <p className="mt-1.5 text-sm text-muted-foreground">Esta acción no se puede deshacer.</p>
-            <div className="mt-5 flex gap-3">
-              <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleLeave}
-                disabled={leaving}
-                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
-              >
-                {leaving ? "..." : grupo.created_by === currentUserId ? "Eliminar" : "Abandonar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal confirmar saldar */}
       {settleConfirm && (
@@ -787,11 +657,168 @@ function GrupoDetail({
   );
 }
 
+/** Cabecera (nombre editable + menú) + cuerpo de un grupo, para la vista "En conjunto". */
+function GrupoDetail({
+  grupo,
+  currentUserId,
+  onBack,
+}: {
+  grupo: GrupoConDetalle;
+  currentUserId: string;
+  onBack: () => void;
+}) {
+  const router = useRouter();
+  const [leaving, setLeaving] = React.useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
+  const [showMenu, setShowMenu] = React.useState(false);
+  const [editingName, setEditingName] = React.useState(false);
+  const [nameValue, setNameValue] = React.useState(grupo.name);
+  const [savingName, setSavingName] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  async function handleSaveName() {
+    if (!nameValue.trim() || nameValue.trim() === grupo.name) { setEditingName(false); return; }
+    setSavingName(true);
+    try {
+      const res = await renameGrupo(grupo.id, nameValue);
+      if (res.ok) { toast.success("Nombre actualizado"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al guardar");
+    } finally {
+      setSavingName(false);
+      setEditingName(false);
+    }
+  }
+
+  async function handleLeave() {
+    setLeaving(true);
+    try {
+      const isCreator = grupo.created_by === currentUserId;
+      const res = isCreator ? await deleteGrupo(grupo.id) : await leaveGrupo(grupo.id);
+      if (res.ok) {
+        toast.success(isCreator ? "Grupo eliminado" : "Has abandonado el grupo");
+        onBack();
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setLeaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Cabecera */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        {editingName ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <input
+              autoFocus
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
+              className="min-w-0 flex-1 rounded-xl border border-primary/50 bg-card px-3 py-1.5 text-xl font-extrabold outline-none"
+            />
+            <button onClick={handleSaveName} disabled={savingName} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-60">
+              <Check className="h-4 w-4" />
+            </button>
+            <button onClick={() => { setEditingName(false); setNameValue(grupo.name); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold tracking-tight text-foreground">
+            {grupo.name}
+          </h1>
+        )}
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setShowMenu((v) => !v)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-border bg-card py-1 shadow-xl">
+              {grupo.created_by === currentUserId && (
+                <button
+                  onClick={() => { setShowMenu(false); setNameValue(grupo.name); setEditingName(true); }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar nombre
+                </button>
+              )}
+              <button
+                onClick={() => { setShowMenu(false); setShowLeaveConfirm(true); }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-muted"
+              >
+                <LogOut className="h-4 w-4" />
+                {grupo.created_by === currentUserId ? "Eliminar grupo" : "Abandonar grupo"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <GrupoBody grupo={grupo} currentUserId={currentUserId} />
+
+      {/* Modal confirmar abandonar/eliminar grupo */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">
+              {grupo.created_by === currentUserId ? "¿Eliminar el grupo?" : "¿Abandonar el grupo?"}
+            </h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">Esta acción no se puede deshacer.</p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleLeave}
+                disabled={leaving}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+              >
+                {leaving ? "..." : grupo.created_by === currentUserId ? "Eliminar" : "Abandonar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Vista lista de grupos ────────────────────────────────────────────────────
 
 export function JuntosView({ data, currentUserId }: Props) {
   const router = useRouter();
-  const [selectedGrupoId, setSelectedGrupoId] = React.useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // Permite abrir un grupo directamente por URL (p.ej. desde el resumen
+  // vinculado en la pestaña Saldos de Vacaciones): /dashboard/juntos?grupo=<id>
+  const [selectedGrupoId, setSelectedGrupoId] = React.useState<string | null>(() => searchParams.get("grupo"));
   const [showCreate, setShowCreate] = React.useState(false);
   const [newName, setNewName] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -967,13 +994,23 @@ export function JuntosView({ data, currentUserId }: Props) {
                 onClick={() => setSelectedGrupoId(g.id)}
                 className="flex items-center gap-4 rounded-3xl border border-border/60 bg-card p-5 shadow-sm transition-shadow hover:shadow-md text-left"
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
                   <Users className="h-6 w-6 text-primary" />
+                  {g.linkedVacationName && (
+                    <span
+                      className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card"
+                      style={{ backgroundColor: PALETTE.peach, color: "#C47C45" }}
+                      title={`Vinculado al viaje: ${g.linkedVacationName}`}
+                    >
+                      <Palmtree className="h-3 w-3" />
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-foreground">{g.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground">
                     {memberCount} {memberCount === 1 ? "miembro" : "miembros"}
+                    {g.linkedVacationName && ` · Viaje: ${g.linkedVacationName}`}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

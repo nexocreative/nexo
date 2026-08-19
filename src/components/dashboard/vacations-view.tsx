@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, Pencil, Trash2, X, ChevronDown, type LucideIcon } from "lucide-react";
+import { Palmtree, Plus, Plane, Check, Luggage, Camera, Mic, PenLine, Upload, Loader2, Square, BedDouble, Bus, Car, UtensilsCrossed, Ticket, Gamepad2, ShoppingBag, Shield, Package, Pencil, Trash2, X, ChevronDown, Users, MoreHorizontal, Link2Off, ArrowRight, type LucideIcon } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -12,10 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense, renameVacation } from "@/app/dashboard/actions";
+import { startVacation, closeVacation, addVacationExpense, deleteVacationExpense, updateVacationExpense, renameVacation, linkVacationGrupo, createGrupo, addGrupoGasto } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
 import { upgradeToast } from "@/lib/upgrade-toast";
+import { cn } from "@/lib/utils";
+import { balanceColor } from "@/components/dashboard/juntos-view";
+import type { GrupoConDetalle, GrupoBalance } from "@/types/database";
 
 interface ExpenseRow {
   id: string;
@@ -35,6 +39,7 @@ interface ActiveVac {
   start_date: string;
   end_date: string | null;
   expenses: ExpenseRow[];
+  grupo: GrupoConDetalle | null;
 }
 interface ClosedVac {
   id: string;
@@ -45,34 +50,358 @@ interface ClosedVac {
   start_date: string;
   end_date: string | null;
   expenses: ExpenseRow[];
+  summary: Record<string, unknown> | null;
 }
 
 function fmtDay(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
+/** Selector de pestañas "Gastos"/"Saldos", reutilizado en el viaje activo y en el detalle de viajes cerrados. */
+function VacTabs({ tab, onChange }: { tab: "gastos" | "saldos"; onChange: (t: "gastos" | "saldos") => void }) {
+  return (
+    <div className="flex w-fit rounded-xl border border-border/60 bg-muted/40 p-1 gap-1">
+      {(["gastos", "saldos"] as const).map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={cn(
+            "rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
+            tab === t ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {t === "gastos" ? "Gastos" : "Saldos"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Barra con el nombre del grupo vinculado y la opción de desvincularlo (no borra el grupo, solo lo desasocia del viaje). */
+/**
+ * Insignia de solo lectura con el grupo vinculado + un menú "..." aparte para
+ * desvincular (con modal de confirmación), igual patrón que usa GrupoDetail
+ * para "Eliminar/Abandonar grupo" en vez de meter la acción en la propia insignia.
+ */
+/** Insignia de solo lectura con el grupo vinculado — sin acciones, solo informativa. */
+function LinkedGrupoBadge({ grupoName }: { grupoName: string }) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 shadow-sm" style={{ backgroundColor: PALETTE.lilaSoft }}>
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-card" style={{ color: PALETTE.lilaInk }}>
+        <Users className="h-3.5 w-3.5" />
+      </span>
+      <span className="text-sm font-medium" style={{ color: PALETTE.lilaInk }}>
+        Vinculado a <span className="font-bold">{grupoName}</span>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Resumen de solo lectura del grupo vinculado (total gastado + quién debe a
+ * quién). Gestionar el grupo (añadir gasto, saldar, invitar) se hace siempre
+ * desde "En conjunto" para no duplicar esa UI en dos sitios; aquí solo se
+ * enlaza directo a su detalle. El botón de desvincular vive junto a ese
+ * enlace, ya que ambos son "acciones sobre el vínculo", no información.
+ */
+function LinkedGrupoSummary({ vacationId, grupo }: { vacationId: string; grupo: GrupoConDetalle }) {
+  const router = useRouter();
+  const totalGastado = grupo.gastos.reduce((a, g) => a + g.amount, 0);
+  const nonZero = grupo.balances.filter((b) => Math.abs(b.net) >= 0.01);
+
+  const [showMenu, setShowMenu] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  const [unlinking, setUnlinking] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  async function unlink() {
+    setUnlinking(true);
+    try {
+      const res = await linkVacationGrupo(vacationId, null);
+      if (res.ok) { toast.success("Grupo desvinculado del viaje"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al desvincular");
+    } finally {
+      setUnlinking(false);
+      setShowConfirm(false);
+    }
+  }
+
+  return (
+    <>
+      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total gastado en el grupo</p>
+            <p className="mt-0.5 text-2xl font-extrabold tracking-tight text-foreground">{formatEUR(totalGastado)}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/dashboard/juntos?grupo=${grupo.id}`}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
+            >
+              Ver y gestionar en En conjunto <ArrowRight className="h-4 w-4" />
+            </Link>
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setShowMenu((v) => !v)}
+                aria-label="Opciones del grupo vinculado"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 top-11 z-50 w-52 rounded-2xl border border-border bg-card py-1 shadow-xl">
+                  <button
+                    onClick={() => { setShowMenu(false); setShowConfirm(true); }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-muted"
+                  >
+                    <Link2Off className="h-4 w-4" />
+                    Desvincular grupo
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {nonZero.length === 0 ? (
+          <p className="mt-5 border-t border-border/60 pt-4 text-sm text-muted-foreground">Todo saldado.</p>
+        ) : (
+          <ul className="mt-5 space-y-3 border-t border-border/60 pt-4">
+            {nonZero.map((b) => (
+              <li key={b.user_id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate font-medium text-foreground">{b.display_name ?? b.email}</span>
+                <span className="shrink-0 font-semibold" style={{ color: balanceColor(b.net) }}>
+                  {b.net > 0 ? `Te debe ${formatEUR(b.net)}` : `Le debes ${formatEUR(Math.abs(b.net))}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">¿Desvincular el grupo?</h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Dejarás de ver los gastos y saldos de <span className="font-semibold text-foreground">{grupo.name}</span> en este viaje. El grupo en sí no se borra, sigue disponible en &ldquo;En conjunto&rdquo;.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={unlink}
+                disabled={unlinking}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+              >
+                {unlinking ? "..." : "Desvincular"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** CTA para vincular el viaje a un grupo de "En conjunto" cuando aún no tiene ninguno. */
+function LinkGrupoCard({
+  vacationId,
+  availableGrupos,
+}: {
+  vacationId: string;
+  availableGrupos: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const [selected, setSelected] = React.useState("");
+  const [linking, setLinking] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
+
+  async function linkExisting() {
+    if (!selected) return;
+    setLinking(true);
+    try {
+      const res = await linkVacationGrupo(vacationId, selected);
+      if (res.ok) { toast.success("Viaje vinculado al grupo"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("Error de conexión al vincular");
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  async function createAndLink() {
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      const res = await createGrupo(newName.trim());
+      if (!res.ok) {
+        if (res.upgradeRequired) upgradeToast(res.error, router);
+        else toast.error(res.error);
+        return;
+      }
+      if ("id" in res && res.id) {
+        const link = await linkVacationGrupo(vacationId, res.id);
+        if (link.ok) { toast.success("Grupo creado y vinculado"); router.refresh(); }
+        else toast.error(link.error);
+      }
+    } catch {
+      toast.error("Error de conexión al crear el grupo");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-7 shadow-sm">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
+        <Users className="h-6 w-6" />
+      </span>
+      <h3 className="mt-4 text-lg font-bold tracking-tight text-foreground">Reparte los gastos del viaje</h3>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+        Vincula este viaje a un grupo de &ldquo;En conjunto&rdquo; para añadir gastos compartidos entre los acompañantes y ver quién debe a quién.
+      </p>
+
+      {availableGrupos.length > 0 && (
+        <div className="mt-5 flex max-w-md flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <select
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+              className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+            >
+              <option value="">Elige un grupo existente…</option>
+              {availableGrupos.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          <button
+            onClick={linkExisting}
+            disabled={!selected || linking}
+            className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {linking ? "Vinculando..." : "Vincular"}
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4 flex max-w-md items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs font-medium text-muted-foreground">o</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      <div className="mt-4 flex max-w-md flex-col gap-2 sm:flex-row">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="Nombre del grupo nuevo"
+          className="flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50"
+        />
+        <button
+          onClick={createAndLink}
+          disabled={!newName.trim() || creating}
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+        >
+          <Plus className="h-4 w-4" /> {creating ? "Creando..." : "Crear grupo"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** Foto de los saldos de un viaje cerrado, tal y como quedaron al cerrarlo (el grupo en sí sigue vivo e independiente del viaje). */
+function ClosedGrupoSnapshot({ summary }: { summary: Record<string, unknown> | null }) {
+  const snapshot = (summary as { grupo_snapshot?: { grupo_name: string; balances: GrupoBalance[] } | null } | null)?.grupo_snapshot ?? null;
+
+  if (!snapshot) {
+    return <p className="text-sm text-muted-foreground">Este viaje no se vinculó a ningún grupo compartido.</p>;
+  }
+
+  const nonZero = snapshot.balances.filter((b) => Math.abs(b.net) >= 0.01);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Foto de los saldos de &ldquo;{snapshot.grupo_name}&rdquo; al cerrar el viaje.
+      </p>
+      {nonZero.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Todo saldado en ese momento.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {nonZero.map((b) => (
+            <li key={b.user_id} className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate font-medium text-foreground">{b.display_name ?? b.email}</span>
+              <span className="shrink-0 font-semibold" style={{ color: balanceColor(b.net) }}>
+                {b.net > 0 ? `Te debía ${formatEUR(b.net)}` : `Le debías ${formatEUR(Math.abs(b.net))}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function VacationsView({
   active,
   closed,
+  currentUserId,
+  availableGrupos,
 }: {
   active: ActiveVac | null;
   closed: ClosedVac[];
+  currentUserId: string;
+  availableGrupos: { id: string; name: string }[];
 }) {
   const [detail, setDetail] = React.useState<ClosedVac | null>(null);
+  const [activeTab, setActiveTab] = React.useState<"gastos" | "saldos">("gastos");
+  const [detailTab, setDetailTab] = React.useState<"gastos" | "saldos">("gastos");
 
   return (
     <div className="space-y-6">
       {active ? (
-        <div className="grid min-w-0 gap-6 lg:grid-cols-3 lg:items-start">
-          <div className="min-w-0 lg:col-span-2">
-            <ActiveCard vac={active} />
-          </div>
-          <div className="min-w-0 lg:row-span-2">
-            <AddExpenseCard vacationId={active.id} />
-          </div>
-          <div className="min-w-0 lg:col-span-2">
-            <ExpensesList vac={active} />
-          </div>
+        <div className="space-y-6">
+          <VacTabs tab={activeTab} onChange={setActiveTab} />
+          {activeTab === "gastos" ? (
+            <div className="grid min-w-0 gap-6 lg:grid-cols-3 lg:items-start">
+              <div className="min-w-0 lg:col-span-2">
+                <ActiveCard vac={active} />
+              </div>
+              <div className="min-w-0 lg:row-span-2">
+                <AddExpenseCard vacationId={active.id} currentUserId={currentUserId} grupo={active.grupo} />
+              </div>
+              <div className="min-w-0 lg:col-span-2">
+                <ExpensesList vac={active} />
+              </div>
+            </div>
+          ) : active.grupo ? (
+            <div className="space-y-4">
+              <LinkedGrupoBadge grupoName={active.grupo.name} />
+              <LinkedGrupoSummary vacationId={active.id} grupo={active.grupo} />
+            </div>
+          ) : (
+            <LinkGrupoCard vacationId={active.id} availableGrupos={availableGrupos} />
+          )}
         </div>
       ) : (
         <StartCard />
@@ -87,7 +416,7 @@ export function VacationsView({
             {closed.map((v) => (
               <button
                 key={v.id}
-                onClick={() => setDetail(v)}
+                onClick={() => { setDetail(v); setDetailTab("gastos"); }}
                 className="rounded-3xl border border-border/60 bg-card p-6 text-left shadow-sm transition-transform hover:-translate-y-0.5"
               >
                 <div className="flex items-center justify-between">
@@ -141,26 +470,32 @@ export function VacationsView({
                   </p>
                 </div>
 
-                {detail.expenses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Este viaje no tiene gastos registrados.</p>
+                <VacTabs tab={detailTab} onChange={setDetailTab} />
+
+                {detailTab === "gastos" ? (
+                  detail.expenses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Este viaje no tiene gastos registrados.</p>
+                  ) : (
+                    <ul className="max-h-72 divide-y divide-border/60 overflow-y-auto">
+                      {detail.expenses.map((e) => (
+                        <li key={e.id} className="flex items-center gap-3 py-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                            <VacIcon category={e.category} className="h-[18px] w-[18px]" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {fmtDay(e.occurred_at)}
+                              {e.notas ? ` · ${e.notas}` : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-bold text-foreground">{formatEUR(-e.amount, { sign: true })}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )
                 ) : (
-                  <ul className="max-h-72 divide-y divide-border/60 overflow-y-auto">
-                    {detail.expenses.map((e) => (
-                      <li key={e.id} className="flex items-center gap-3 py-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                          <VacIcon category={e.category} className="h-[18px] w-[18px]" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">{e.concepto ?? "Gasto"}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {fmtDay(e.occurred_at)}
-                            {e.notas ? ` · ${e.notas}` : ""}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-sm font-bold text-foreground">{formatEUR(-e.amount, { sign: true })}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <ClosedGrupoSnapshot summary={detail.summary} />
                 )}
               </div>
             </>
@@ -325,7 +660,15 @@ const vacMethods: { key: VacMethod; label: string; icon: typeof Camera; bg: stri
   { key: "manual", label: "Manual", icon: PenLine, bg: PALETTE.peachSoft, fg: PALETTE.peachInk },
 ];
 
-function AddExpenseCard({ vacationId }: { vacationId: string }) {
+function AddExpenseCard({
+  vacationId,
+  currentUserId,
+  grupo,
+}: {
+  vacationId: string;
+  currentUserId: string;
+  grupo: GrupoConDetalle | null;
+}) {
   const router = useRouter();
   const [method, setMethod] = React.useState<VacMethod>("manual");
   const [concepto, setConcepto] = React.useState("");
@@ -341,6 +684,24 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
   const mountedRef = React.useRef(true);
+
+  // Compartir el gasto con el grupo vinculado al viaje (además de guardarlo
+  // como gasto personal): quién pagó y quién participa en el reparto.
+  const acceptedGrupoMembers = React.useMemo(
+    () => grupo?.members.filter((m) => m.status === "accepted") ?? [],
+    [grupo],
+  );
+  const [shareWithGroup, setShareWithGroup] = React.useState(false);
+  const [gastoPaidBy, setGastoPaidBy] = React.useState(currentUserId);
+  const [gastoParticipants, setGastoParticipants] = React.useState<string[]>(
+    acceptedGrupoMembers.map((m) => m.user_id),
+  );
+
+  const toggleParticipant = (uid: string) => {
+    setGastoParticipants((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid],
+    );
+  };
 
   // Si el componente se desmonta (p.ej. se navega fuera) a media grabación o
   // análisis, libera el micrófono y evita setState sobre un componente ya
@@ -438,12 +799,29 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
         category: category || null,
         notas: notas || undefined,
       });
-      if (res.ok) {
-        toast.success("Gasto añadido al viaje");
-        setConcepto(""); setAmount(""); setNotas(""); setCategory("");
-        setDetected(false); setMethod("manual");
-        router.refresh();
-      } else toast.error(res.error);
+      if (!res.ok) { toast.error(res.error); return; }
+
+      // Además de guardarlo como gasto personal del viaje, si se marcó
+      // "Compartir con el grupo" se registra también como gasto compartido
+      // (con quién pagó y quién participa) para que entre en el reparto.
+      if (shareWithGroup && grupo && gastoParticipants.length > 0) {
+        const shareRes = await addGrupoGasto({
+          grupoId: grupo.id,
+          description: concepto,
+          amount: Number(amount),
+          occurredAt: date,
+          paidBy: gastoPaidBy,
+          participantIds: gastoParticipants,
+        });
+        if (!shareRes.ok) toast.error(`Gasto guardado, pero no se pudo compartir con el grupo: ${shareRes.error}`);
+      }
+
+      toast.success("Gasto añadido al viaje");
+      setConcepto(""); setAmount(""); setNotas(""); setCategory("");
+      setDetected(false); setMethod("manual");
+      setShareWithGroup(false); setGastoPaidBy(currentUserId);
+      setGastoParticipants(acceptedGrupoMembers.map((m) => m.user_id));
+      router.refresh();
     } catch {
       toast.error("Error de conexión al guardar el gasto");
     } finally {
@@ -576,8 +954,66 @@ function AddExpenseCard({ vacationId }: { vacationId: string }) {
               rows={2}
               className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
             />
+
+            {grupo && (
+              <div className="rounded-xl border border-border bg-muted/30 p-3">
+                <label className="flex cursor-pointer items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={shareWithGroup}
+                    onChange={(e) => setShareWithGroup(e.target.checked)}
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                  <span className="text-sm font-medium text-foreground">
+                    Compartir con el grupo &ldquo;{grupo.name}&rdquo;
+                  </span>
+                </label>
+
+                {shareWithGroup && (
+                  <div className="mt-3 space-y-2.5">
+                    <div className="relative">
+                      <select
+                        value={gastoPaidBy}
+                        onChange={(e) => setGastoPaidBy(e.target.value)}
+                        className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                      >
+                        {acceptedGrupoMembers.map((m) => (
+                          <option key={m.user_id} value={m.user_id}>
+                            {m.user_id === currentUserId ? "Yo" : (m.display_name ?? m.email ?? m.user_id)}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Participan:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {acceptedGrupoMembers.map((m) => {
+                          const checked = gastoParticipants.includes(m.user_id);
+                          return (
+                            <button
+                              key={m.user_id}
+                              type="button"
+                              onClick={() => toggleParticipant(m.user_id)}
+                              className={`rounded-xl border px-3 py-1 text-xs font-medium transition-colors ${
+                                checked
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border bg-card text-muted-foreground"
+                              }`}
+                            >
+                              {m.user_id === currentUserId ? "Yo" : (m.display_name ?? m.email)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
-              disabled={pending || !concepto || !amount}
+              disabled={pending || !concepto || !amount || (shareWithGroup && gastoParticipants.length === 0)}
               onClick={submit}
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-75"
             >
