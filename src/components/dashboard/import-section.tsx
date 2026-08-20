@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileSpreadsheet, Upload, Loader2, Check, AlertTriangle, CalendarClock, ChevronDown, Lock } from "lucide-react";
-import { CATEGORIES, PALETTE } from "@/lib/constants";
+import { PALETTE } from "@/lib/constants";
+import { useCategories } from "@/components/dashboard/categories-provider";
 import { createTransactionsBulk } from "@/app/dashboard/actions";
 import { DatePicker } from "@/components/ui/date-picker";
 import { formatEUR } from "@/lib/format";
@@ -34,8 +35,6 @@ interface ImportRow {
   incluir: boolean;
 }
 
-const CATEGORY_KEYS = CATEGORIES.map((c) => c.key) as string[];
-
 // Ancho de cada columna de la tabla de revisión: fijo según lo que
 // necesita su contenido, salvo Descripción, que se lleva el resto.
 const REVIEW_GRID_COLS = "2rem 7rem minmax(14rem,1fr) 9rem 10rem 8.5rem";
@@ -46,6 +45,8 @@ function isValidDate(value: string) {
 
 export function ImportarSection({ remainingTrial }: { remainingTrial: number | null }) {
   const router = useRouter();
+  const categories = useCategories();
+  const categoryKeys = React.useMemo(() => categories.map((c) => c.key), [categories]);
   const [analyzing, setAnalyzing] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [rows, setRows] = React.useState<ImportRow[]>([]);
@@ -286,7 +287,7 @@ export function ImportarSection({ remainingTrial }: { remainingTrial: number | n
                       <div role="cell">
                         <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-border text-xs font-semibold">
                           <button
-                            onClick={() => updateRow(i, { tipo: "expense", categoria: CATEGORY_KEYS.includes(r.categoria) ? r.categoria : "otros" })}
+                            onClick={() => updateRow(i, { tipo: "expense", categoria: categoryKeys.includes(r.categoria) ? r.categoria : "otros" })}
                             className={cn(
                               "w-[68px] py-1.5 text-center transition-colors",
                               r.tipo === "expense" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground",
@@ -295,7 +296,7 @@ export function ImportarSection({ remainingTrial }: { remainingTrial: number | n
                             Gasto
                           </button>
                           <button
-                            onClick={() => updateRow(i, { tipo: "income", categoria: CATEGORY_KEYS.includes(r.categoria) ? "" : r.categoria })}
+                            onClick={() => updateRow(i, { tipo: "income", categoria: categoryKeys.includes(r.categoria) ? "" : r.categoria })}
                             className={cn(
                               "w-[68px] py-1.5 text-center transition-colors",
                               r.tipo === "income" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground",
@@ -313,7 +314,7 @@ export function ImportarSection({ remainingTrial }: { remainingTrial: number | n
                               onChange={(e) => updateRow(i, { categoria: e.target.value })}
                               className="w-full appearance-none rounded-lg border border-border bg-transparent py-1.5 pl-2 pr-7 text-xs outline-none"
                             >
-                              {CATEGORIES.map((c) => (
+                              {categories.map((c) => (
                                 <option key={c.key} value={c.key}>{c.label}</option>
                               ))}
                             </select>

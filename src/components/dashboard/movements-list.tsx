@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { useCategories } from "@/components/dashboard/categories-provider";
 import { deleteTransaction, deleteSavingsEntry } from "@/app/dashboard/actions";
 import { formatEUR } from "@/lib/format";
 import { PALETTE } from "@/lib/constants";
@@ -40,6 +41,7 @@ const SOURCE: Record<string, { label: string; icon: typeof Camera }> = {
 };
 
 function RowIcon({ row }: { row: MovementRow }) {
+  const categories = useCategories();
   if (row.type === "savings") {
     return (
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: PALETTE.lilaSoft, color: PALETTE.lilaInk }}>
@@ -56,7 +58,7 @@ function RowIcon({ row }: { row: MovementRow }) {
   }
   return (
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-      <CategoryIcon category={row.cat.key} className="h-5 w-5" />
+      <CategoryIcon category={row.cat.key} categories={categories} className="h-5 w-5" />
     </span>
   );
 }

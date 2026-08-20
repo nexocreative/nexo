@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, TrendingUp, AlertTriangle, ShieldCheck, Banknote, PiggyBank } from "lucide-react";
-import { requireUserId, getDashboard } from "@/lib/data/queries";
+import { requireUserId, getDashboard, getCategories } from "@/lib/data/queries";
 import { NominaCard } from "@/components/dashboard/nomina-card";
 import { IncomeExpenseBars } from "@/components/charts/income-expense-bars";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
@@ -9,7 +9,7 @@ import { PALETTE } from "@/lib/constants";
 
 export default async function DashboardPage() {
   const userId = await requireUserId();
-  const d = await getDashboard(userId);
+  const [d, categories] = await Promise.all([getDashboard(userId), getCategories(userId)]);
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
                   ) : t.type === "savings" ? (
                     <PiggyBank className="h-[18px] w-[18px]" />
                   ) : (
-                    <CategoryIcon category={t.categoryKey} className="h-[18px] w-[18px]" />
+                    <CategoryIcon category={t.categoryKey} categories={categories} className="h-[18px] w-[18px]" />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">

@@ -16,11 +16,21 @@ export type CategoryKey =
   | "otros";
 
 export interface CategoryDef {
-  key: CategoryKey;
+  key: string;
   label: string;
   /** Nombre del icono de lucide-react asociado (ver CategoryIcon). */
   icon: string;
+  /** true si el usuario la creó (no es una de las 10 por defecto de abajo). */
+  custom?: boolean;
 }
+
+/** Iconos entre los que puede elegir el usuario al crear una categoría propia. */
+export const CATEGORY_ICON_CHOICES = [
+  "ShoppingCart", "ShoppingBag", "UtensilsCrossed", "Coffee", "Car", "Bus", "Fuel", "Plane",
+  "Gamepad2", "Music", "Film", "Pill", "Stethoscope", "Home", "Wrench", "Shirt",
+  "Palmtree", "Gift", "Heart", "PawPrint", "Baby", "GraduationCap", "Briefcase",
+  "Smartphone", "Laptop", "Book", "Dumbbell", "Wallet", "Sparkles", "Package",
+] as const;
 
 export const CATEGORIES: CategoryDef[] = [
   { key: "supermercado", label: "Supermercado", icon: "ShoppingCart" },
@@ -35,16 +45,23 @@ export const CATEGORIES: CategoryDef[] = [
   { key: "otros", label: "Otros", icon: "Package" },
 ];
 
-export const CATEGORY_MAP: Record<CategoryKey, CategoryDef> = CATEGORIES.reduce(
+export const CATEGORY_MAP: Record<string, CategoryDef> = CATEGORIES.reduce(
   (acc, c) => {
     acc[c.key] = c;
     return acc;
   },
-  {} as Record<CategoryKey, CategoryDef>,
+  {} as Record<string, CategoryDef>,
 );
 
-export function getCategory(key: string | null | undefined): CategoryDef {
-  return CATEGORY_MAP[(key ?? "otros") as CategoryKey] ?? CATEGORY_MAP.otros;
+/**
+ * Busca una categoría por key. Si se pasa la lista combinada (por defecto +
+ * personalizadas del usuario, ver `getCategories` en data/queries.ts)
+ * también resuelve categorías propias; si no se pasa, solo las 10 por
+ * defecto (y cualquier otra cae en "Otros").
+ */
+export function getCategory(key: string | null | undefined, categories: CategoryDef[] = CATEGORIES): CategoryDef {
+  if (!key) return CATEGORY_MAP.otros;
+  return categories.find((c) => c.key === key) ?? CATEGORY_MAP.otros;
 }
 
 /**

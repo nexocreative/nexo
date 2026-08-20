@@ -3,14 +3,10 @@ import { getOpenAI, WHISPER_MODEL, VISION_MODEL } from "@/lib/openai";
 import { checkAndRecordRateLimit, recordAiSuccess } from "@/lib/rate-limit";
 import { requirePlusForAi } from "@/lib/billing";
 import { requireUserIdFromRequest } from "@/lib/mobile-auth";
+import { getCategories } from "@/lib/data/queries";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const CATEGORY_KEYS = [
-  "supermercado", "restaurantes", "transporte", "ocio", "suscripciones",
-  "salud", "hogar", "ropa", "otros",
-];
 
 export async function POST(req: Request) {
   const userId = await requireUserIdFromRequest(req);
@@ -68,6 +64,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No se entendió el audio. Inténtalo de nuevo." }, { status: 422 });
   }
 
+  // Categorías del usuario (por defecto + propias), sin "Vacaciones".
+  const categories = (await getCategories(userId)).filter((c) => c.key !== "vacaciones");
+
   // 2) Extracción estructurada con GPT-4o
   const today = new Date().toISOString().slice(0, 10);
   const system = `Eres un asistente que convierte una frase hablada sobre un gasto en JSON.
@@ -76,9 +75,9 @@ La fecha de hoy es ${today}. Devuelve EXCLUSIVAMENTE un objeto JSON:
   "comercio": string,   // dónde o en qué se gastó (ej. "Gasolinera", "Mercadona", "Cena")
   "importe": number,    // cantidad en euros, solo el número (ej. 50)
   "fecha": string,      // YYYY-MM-DD; resuelve "hoy"/"ayer" respecto a ${today}
-  "categoria": string   // una de: ${CATEGORY_KEYS.join(", ")}
+  "categoria": string   // una de: ${categories.map((c) => c.label).join(", ")}
 }
-Reglas: si falta un dato usa "" / 0; "categoria" debe ser uno de los permitidos (si dudas, "otros"). Solo el JSON.`;
+Reglas: si falta un dato usa "" / 0; "categoria" debe ser uno de los permitidos (si dudas, "Otros"). Solo el JSON.`;
 
   let extracted: Record<string, unknown> = {};
   try {
@@ -101,8 +100,9 @@ Reglas: si falta un dato usa "" / 0; "categoria" debe ser uno de los permitidos 
   }
   await recordAiSuccess(userId, "voice");
 
-  const cat = String(extracted.categoria ?? "").toLowerCase();
-  const category = CATEGORY_KEYS.includes(cat) ? cat : "otros";
+  const catRaw = String(extracted.categoria ?? "").trim().toLowerCase();
+  const matched = categories.find((c) => c.label.toLowerCase() === catRaw || c.key.toLowerCase() === catRaw);
+  const category = matched?.key ?? "otros";
 
   return NextResponse.json({
     transcript,

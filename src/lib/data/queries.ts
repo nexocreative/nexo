@@ -16,6 +16,7 @@ import type {
   GrupoBalance,
   GrupoInvite,
   AppNotification,
+  CustomCategory,
 } from "@/types/database";
 import {
   CATEGORIES,
@@ -51,8 +52,30 @@ function sum(rows: { amount: number }[]): number {
 
 export type TxView = Transaction & { cat: CategoryDef };
 
-function withCategory(t: Transaction): TxView {
-  return { ...t, cat: getCategory(t.category) };
+function withCategory(t: Transaction, categories: CategoryDef[]): TxView {
+  return { ...t, cat: getCategory(t.category, categories) };
+}
+
+// ---------------------------------------------------------------------------
+// Categorías (por defecto + personalizadas del usuario)
+// ---------------------------------------------------------------------------
+
+/**
+ * Las 10 categorías por defecto (fijas, no editables) más las que el propio
+ * usuario haya creado. Se usa en cualquier sitio donde antes se importaba
+ * `CATEGORIES` directamente (selectores, gráficas, límites, IA...).
+ */
+export async function getCategories(userId: string): Promise<CategoryDef[]> {
+  const { data } = await supabaseAdmin()
+    .from("categories")
+    .select("*")
+    .eq("user_id", userId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  const custom = ((data as CustomCategory[]) ?? []).map(
+    (c): CategoryDef => ({ key: c.id, label: c.label, icon: c.icon, custom: true }),
+  );
+  return [...CATEGORIES, ...custom];
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +185,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
   const end = isoDate(endOfMonth(now));
   const barsFrom = isoDate(startOfMonth(subMonths(now, 5)));
 
-  const [{ data: monthTx }, { data: recentTx }, profile, { data: budgets }, { data: rules }, { data: barsTx }, { data: savingsEntries }, { data: savingsCats }] =
+  const [{ data: monthTx }, { data: recentTx }, profile, { data: budgets }, { data: rules }, { data: barsTx }, { data: savingsEntries }, { data: savingsCats }, categories] =
     await Promise.all([
       supabaseAdmin()
         .from("transactions")
@@ -195,6 +218,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
         .gte("occurred_at", barsFrom),
       supabaseAdmin().from("savings_entries").select("*").eq("user_id", userId),
       supabaseAdmin().from("savings_categories").select("id, name, monthly_plan").eq("user_id", userId),
+      getCategories(userId),
     ]);
 
   // Ahorro: total del mes en curso, plan mensual y acumulado histórico.
@@ -243,7 +267,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     const limit = Number(cb.monthly_limit);
     const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
     if (pct >= 75 && (!topAlert || pct > topAlert.pct)) {
-      topAlert = { cat: getCategory(cb.category), spent, limit, pct };
+      topAlert = { cat: getCategory(cb.category, categories), spent, limit, pct };
     }
   }
 
@@ -256,7 +280,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
   }
 
   // Últimos movimientos: transacciones + aportes de ahorro, ordenados por fecha.
-  const recentTxItems: RecentItem[] = ((recentTx as Transaction[]) ?? []).map(withCategory).map((t) => ({
+  const recentTxItems: RecentItem[] = ((recentTx as Transaction[]) ?? []).map((t) => withCategory(t, categories)).map((t) => ({
     id: t.id,
     type: t.type,
     title: t.merchant ?? t.description ?? t.cat.label,
@@ -353,7 +377,7 @@ export async function getMovements(
   if (opts?.category) query = query.eq("category", opts.category);
 
   const mk = monthKey(monthDate);
-  const [{ data: tx }, { data: rules }, { data: sEntries }, { data: sCats }, { data: incomeCats }] = await Promise.all([
+  const [{ data: tx }, { data: rules }, { data: sEntries }, { data: sCats }, { data: incomeCats }, categories] = await Promise.all([
     query,
     supabaseAdmin()
       .from("recurring_rules")
@@ -373,6 +397,7 @@ export async function getMovements(
       .eq("user_id", userId)
       .eq("type", "income")
       .not("category", "is", null),
+    getCategories(userId),
   ]);
 
   // Categorías de ingreso: por defecto + las que ya ha usado el usuario.
@@ -386,7 +411,7 @@ export async function getMovements(
     ]),
   );
 
-  const transactions = ((tx as Transaction[]) ?? []).map(withCategory);
+  const transactions = ((tx as Transaction[]) ?? []).map((t) => withCategory(t, categories));
   const income = sum(transactions.filter((t) => t.type === "income"));
   const expense = sum(transactions.filter((t) => t.type === "expense"));
 
@@ -436,7 +461,7 @@ export async function getMovements(
     savingsMovements,
     recurring: ((rules as RecurringRule[]) ?? []).map((r) => ({
       ...r,
-      cat: getCategory(r.category),
+      cat: getCategory(r.category, categories),
     })),
     incomeCategories,
   };
@@ -464,7 +489,7 @@ export async function getLimits(userId: string): Promise<LimitsData> {
   const start = isoDate(startOfMonth(now));
   const end = isoDate(endOfMonth(now));
 
-  const [{ data: tx }, profile, { data: budgets }] = await Promise.all([
+  const [{ data: tx }, profile, { data: budgets }, allCategories] = await Promise.all([
     supabaseAdmin()
       .from("transactions")
       .select("*")
@@ -475,6 +500,7 @@ export async function getLimits(userId: string): Promise<LimitsData> {
       .lte("occurred_at", end),
     getProfile(userId),
     supabaseAdmin().from("category_budgets").select("*").eq("user_id", userId),
+    getCategories(userId),
   ]);
 
   const expenses = (tx as Transaction[]) ?? [];
@@ -488,7 +514,7 @@ export async function getLimits(userId: string): Promise<LimitsData> {
       const spent = sum(expenses.filter((e) => e.category === cb.category));
       const limit = Number(cb.monthly_limit);
       const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
-      return { cat: getCategory(cb.category), limit, spent, pct, state: budgetState(spent, limit) };
+      return { cat: getCategory(cb.category, allCategories), limit, spent, pct, state: budgetState(spent, limit) };
     })
     .sort((a, b) => b.pct - a.pct);
 
@@ -500,7 +526,7 @@ export async function getLimits(userId: string): Promise<LimitsData> {
       state: globalLimit ? budgetState(totalSpent, globalLimit) : "ok",
     },
     categories,
-    unconfigured: CATEGORIES.filter((c) => !configured.has(c.key)),
+    unconfigured: allCategories.filter((c) => !configured.has(c.key)),
   };
 }
 
@@ -520,7 +546,7 @@ export async function getCharts(userId: string, plan: Plan = "free"): Promise<Ch
   const monthsBack = plan === "plus" ? 12 : FREE_LIMITS.historyMonths;
   const from = isoDate(startOfMonth(subMonths(now, monthsBack - 1)));
 
-  const [{ data: tx }, profile] = await Promise.all([
+  const [{ data: tx }, profile, categories] = await Promise.all([
     supabaseAdmin()
       .from("transactions")
       .select("*")
@@ -528,6 +554,7 @@ export async function getCharts(userId: string, plan: Plan = "free"): Promise<Ch
       .is("vacation_id", null)
       .gte("occurred_at", from),
     getProfile(userId),
+    getCategories(userId),
   ]);
   const all = (tx as Transaction[]) ?? [];
 
@@ -558,7 +585,7 @@ export async function getCharts(userId: string, plan: Plan = "free"): Promise<Ch
   // Donut: gasto del mes actual por categoría
   const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const curExpenses = all.filter((t) => keyOf(t.occurred_at) === curKey && t.type === "expense");
-  const donut = CATEGORIES.map((c, i) => ({
+  const donut = categories.map((c, i) => ({
     name: c.label,
     value: sum(curExpenses.filter((e) => e.category === c.key)),
     color: chartColor(i),

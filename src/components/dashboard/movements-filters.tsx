@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { CATEGORIES } from "@/lib/constants";
+import { useCategories } from "@/components/dashboard/categories-provider";
 import { cn } from "@/lib/utils";
 
 export function MovementsFilters({
@@ -13,6 +13,7 @@ export function MovementsFilters({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const categories = useCategories();
 
   const type = params.get("type") ?? "all";
   const category = params.get("category") ?? "";
@@ -61,7 +62,7 @@ export function MovementsFilters({
             )}
           >
             <option value="">Todas las categorías</option>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c.key} value={c.key}>
                 {c.label}
               </option>

@@ -3,8 +3,6 @@
  * La autenticación (users, sessions, accounts) la gestiona el adaptador de
  * NextAuth en el esquema `next_auth`.
  */
-import type { CategoryKey } from "@/lib/constants";
-
 export type TransactionType = "expense" | "income";
 export type TransactionSource = "manual" | "photo" | "voice" | "recurring" | "chat" | "import";
 
@@ -22,7 +20,7 @@ export interface Transaction {
   user_id: string;
   type: TransactionType;
   amount: number; // siempre positivo; el signo lo da `type`
-  category: CategoryKey | null; // null para ingresos
+  category: string | null; // null para ingresos; key de una categoría por defecto o personalizada
   description: string | null;
   merchant: string | null;
   occurred_at: string; // fecha del movimiento (ISO date)
@@ -37,7 +35,7 @@ export interface Transaction {
 export interface CategoryBudget {
   id: string;
   user_id: string;
-  category: CategoryKey;
+  category: string;
   monthly_limit: number;
 }
 
@@ -46,7 +44,7 @@ export interface RecurringRule {
   user_id: string;
   type: TransactionType;
   amount: number;
-  category: CategoryKey | null;
+  category: string | null;
   description: string | null;
   day_of_month: number; // 1..28
   active: boolean;
@@ -93,6 +91,17 @@ export interface VacationPeriod {
   summary: Record<string, unknown> | null; // resumen al cerrar
   created_at: string;
   grupo_id: string | null; // grupo de "En conjunto" vinculado para la pestaña Saldos
+}
+
+// Categoría de gasto personalizada, creada por el usuario además de las
+// 10 categorías por defecto (fijas en el código, ver `src/lib/constants.ts`).
+export interface CustomCategory {
+  id: string;
+  user_id: string;
+  label: string;
+  icon: string;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface AiRecommendation {

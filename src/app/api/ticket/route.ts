@@ -5,31 +5,31 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { checkAndRecordRateLimit, recordAiSuccess } from "@/lib/rate-limit";
 import { requirePlusForAi } from "@/lib/billing";
 import { requireUserIdFromRequest } from "@/lib/mobile-auth";
+import { getCategories } from "@/lib/data/queries";
+import type { CategoryDef } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const CATEGORY_KEYS = [
-  "supermercado", "restaurantes", "transporte", "ocio", "suscripciones",
-  "salud", "hogar", "ropa", "otros",
-];
-
-const SYSTEM_PROMPT = `Eres un asistente que extrae datos de tickets de compra (recibos) a partir de una foto.
+function systemPrompt(categories: CategoryDef[]): string {
+  const labels = categories.map((c) => c.label).join(", ");
+  return `Eres un asistente que extrae datos de tickets de compra (recibos) a partir de una foto.
 Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
 {
   "comercio": string,          // nombre del establecimiento
   "importe": number,           // importe TOTAL pagado, en euros, solo el número (ej. 23.45)
   "fecha": string,             // fecha del ticket en formato YYYY-MM-DD
-  "categoria": string,         // una de: ${CATEGORY_KEYS.join(", ")}
+  "categoria": string,         // una de: ${labels}
   "items": [ { "nombre": string, "importe": number } ]  // líneas del ticket si se distinguen
 }
 Reglas:
-- "categoria" DEBE ser exactamente uno de los valores permitidos; si dudas usa "otros".
+- "categoria" DEBE ser exactamente uno de los valores permitidos; si dudas usa "Otros".
 - "importe" es el TOTAL del ticket (no líneas sueltas), como número con punto decimal.
 - "fecha": usa el año que aparezca en el ticket. Si el año NO se ve con claridad, usa el AÑO ACTUAL. Nunca inventes años pasados; un ticket reciente casi siempre es de este año.
 - Si no puedes leer la fecha, déjala como "".
 - Si no puedes leer un dato, usa "" para textos, 0 para números y [] para items.
 - No incluyas texto fuera del JSON.`;
+}
 
 /** Valida la fecha extraída: si es inválida o cae fuera de una ventana
  *  razonable (más de ~18 meses atrás o en el futuro), usa la de hoy.
@@ -88,6 +88,10 @@ export async function POST(req: Request) {
   const mime = file.type || "image/jpeg";
   const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
 
+  // Categorías del usuario (por defecto + propias), sin "Vacaciones": el
+  // escaneo de tickets es para gastos del día a día, no del viaje.
+  const categories = (await getCategories(userId)).filter((c) => c.key !== "vacaciones");
+
   // 1) Extracción con GPT-4o Vision
   let extracted: Record<string, unknown>;
   try {
@@ -96,7 +100,7 @@ export async function POST(req: Request) {
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt(categories) },
         {
           role: "user",
           content: [
@@ -116,9 +120,10 @@ export async function POST(req: Request) {
   }
   await recordAiSuccess(userId, "ticket");
 
-  // Normaliza categoría
-  const cat = String(extracted.categoria ?? "").toLowerCase();
-  const category = CATEGORY_KEYS.includes(cat) ? cat : "otros";
+  // Normaliza categoría: la IA devuelve el label, lo resolvemos a su key.
+  const catRaw = String(extracted.categoria ?? "").trim().toLowerCase();
+  const matched = categories.find((c) => c.label.toLowerCase() === catRaw || c.key.toLowerCase() === catRaw);
+  const category = matched?.key ?? "otros";
 
   // 2) Sube la imagen original a Storage (no fatal si falla)
   let receiptPath: string | null = null;

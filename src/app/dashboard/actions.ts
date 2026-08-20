@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { requireUserId, materializeRecurring, getGrupos } from "@/lib/data/queries";
+import { requireUserId, materializeRecurring, getGrupos, getCategories } from "@/lib/data/queries";
 import { monthKey } from "@/lib/format";
 import { budgetState, crossedThreshold, getCategory, type BudgetState } from "@/lib/constants";
 import { sendEmail } from "@/lib/email/send";
@@ -22,11 +22,6 @@ function currentMonthRange() {
     end: `${y}-${p(m + 1)}-${p(new Date(y, m + 1, 0).getDate())}`,
   };
 }
-
-const CATEGORY_KEYS = [
-  "supermercado", "restaurantes", "transporte", "ocio", "suscripciones",
-  "salud", "hogar", "ropa", "vacaciones", "otros",
-] as const;
 
 export type ActionResult = { ok: true } | { ok: false; error: string; upgradeRequired?: boolean };
 
@@ -92,7 +87,7 @@ export async function markNotificationsRead(): Promise<ActionResult> {
 const txSchema = z.object({
   type: z.enum(["expense", "income"]),
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
-  category: z.enum(CATEGORY_KEYS).nullable().optional(),
+  category: z.string().trim().min(1).max(60).nullable().optional(),
   merchant: z.string().trim().max(120, "El comercio no puede superar los 120 caracteres").optional(),
   description: z.string().trim().max(240, "La descripción no puede superar los 240 caracteres").optional(),
   occurred_at: z.string().optional(),
@@ -156,7 +151,8 @@ export async function createTransaction(input: unknown): Promise<ActionResult & 
         const before = budgetState(spentBefore, catLimit);
         const after = budgetState(spentAfter, catLimit);
         if (crossedThreshold(before, after)) {
-          alerts.push({ scope: "category", label: getCategory(category).label, pct: Math.round((spentAfter / catLimit) * 100), state: after });
+          const categories = await getCategories(userId);
+          alerts.push({ scope: "category", label: getCategory(category, categories).label, pct: Math.round((spentAfter / catLimit) * 100), state: after });
         }
       }
     }
@@ -184,8 +180,8 @@ export async function createTransaction(input: unknown): Promise<ActionResult & 
 // --- Importar movimientos en bloque (extracto bancario) --------------------
 
 // A diferencia de txSchema, la categoría aquí es texto libre: los gastos se
-// normalizan contra CATEGORY_KEYS al insertar, pero los ingresos importados
-// admiten cualquier texto (igual que en el alta manual de ingresos).
+// normalizan contra las categorías reales del usuario al insertar, pero los
+// ingresos importados admiten cualquier texto (igual que en el alta manual).
 const bulkTxRowSchema = z.object({
   type: z.enum(["expense", "income"]),
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
@@ -203,13 +199,14 @@ export async function createTransactionsBulk(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
+  const categoryKeys = new Set((await getCategories(userId)).map((c) => c.key));
   const rows = parsed.data.map((d) => {
     const cat = d.category?.trim() || "";
     return {
       user_id: userId,
       type: d.type,
       amount: d.amount,
-      category: d.type === "income" ? (cat || null) : ((CATEGORY_KEYS as readonly string[]).includes(cat) ? cat : "otros"),
+      category: d.type === "income" ? (cat || null) : (categoryKeys.has(cat) ? cat : "otros"),
       merchant: null,
       description: d.description || null,
       occurred_at: d.occurred_at || new Date().toISOString().slice(0, 10),
@@ -275,7 +272,7 @@ export async function deleteTransaction(id: string): Promise<ActionResult> {
 const recurringSchema = z.object({
   type: z.enum(["expense", "income"]),
   amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
-  category: z.enum(CATEGORY_KEYS).nullable().optional(),
+  category: z.string().trim().min(1).max(60).nullable().optional(),
   description: z.string().trim().min(1, "El concepto es obligatorio").max(120, "El concepto no puede superar los 120 caracteres"),
   day_of_month: z.coerce.number().int().min(1, "El día debe estar entre 1 y 28").max(28, "El día debe estar entre 1 y 28"),
   active: z.boolean().optional(),
@@ -410,6 +407,73 @@ export async function confirmNomina(input: {
   return { ok: true };
 }
 
+// --- Categorías personalizadas ----------------------------------------------
+// Las 10 categorías por defecto son fijas (en el código); estas son las que
+// cada usuario puede añadir/editar/borrar además de esas. Ver getCategories().
+
+const categorySchema = z.object({
+  label: z.string().trim().min(1, "El nombre es obligatorio").max(40, "El nombre no puede superar los 40 caracteres"),
+  icon: z.string().trim().min(1).max(40),
+});
+
+export async function createCategory(input: unknown): Promise<ActionResult & { id?: string }> {
+  const userId = await requireUserId();
+  const parsed = categorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { count } = await supabaseAdmin()
+    .from("categories")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  const { data, error } = await supabaseAdmin()
+    .from("categories")
+    .insert({
+      user_id: userId,
+      label: parsed.data.label,
+      icon: parsed.data.icon,
+      sort_order: count ?? 0,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true, id: data.id };
+}
+
+export async function updateCategory(id: string, input: unknown): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = categorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { error } = await supabaseAdmin()
+    .from("categories")
+    .update({ label: parsed.data.label, icon: parsed.data.icon })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/**
+ * Borra una categoría personalizada. Los gastos ya guardados con esa
+ * categoría no se reasignan: simplemente dejan de reconocerse y se
+ * muestran como "Otros" (mismo fallback que ya usa getCategory()).
+ */
+export async function deleteCategory(id: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { error } = await supabaseAdmin()
+    .from("categories")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
 // --- Límites ---------------------------------------------------------------
 
 export async function setGlobalBudget(amount: number): Promise<ActionResult> {
@@ -430,7 +494,8 @@ export async function upsertCategoryLimit(
   amount: number,
 ): Promise<ActionResult> {
   const userId = await requireUserId();
-  if (!CATEGORY_KEYS.includes(category as (typeof CATEGORY_KEYS)[number])) {
+  const categories = await getCategories(userId);
+  if (!categories.some((c) => c.key === category)) {
     return { ok: false, error: "Categoría no válida" };
   }
   const value = Number(amount);

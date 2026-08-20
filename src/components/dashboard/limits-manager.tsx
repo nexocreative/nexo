@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Pencil, Plus, AlertTriangle, Ban, Bell, Info } from "lucide-react";
 import { setGlobalBudget, upsertCategoryLimit } from "@/app/dashboard/actions";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { useCategories } from "@/components/dashboard/categories-provider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
@@ -116,11 +117,12 @@ function GlobalCard({
 }
 
 function CategoryLimitRow({ row, isNew = false, onEdit }: { row: Row; isNew?: boolean; onEdit: () => void }) {
+  const allCategories = useCategories();
   if (isNew) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-2xl border border-dashed border-border/70 p-4">
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground"><CategoryIcon category={row.cat.key} className="h-4 w-4" /></span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground"><CategoryIcon category={row.cat.key} categories={allCategories} className="h-4 w-4" /></span>
           {row.cat.label}
         </span>
         <button onClick={onEdit} className="flex shrink-0 items-center gap-1 text-sm font-semibold text-primary hover:underline">
@@ -136,7 +138,7 @@ function CategoryLimitRow({ row, isNew = false, onEdit }: { row: Row; isNew?: bo
     <li className="list-none rounded-2xl border border-border/60 p-4">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground"><CategoryIcon category={row.cat.key} className="h-4 w-4" /></span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground"><CategoryIcon category={row.cat.key} categories={allCategories} className="h-4 w-4" /></span>
           {row.cat.label}
         </span>
         <button onClick={onEdit} className="shrink-0 text-muted-foreground hover:text-foreground">

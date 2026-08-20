@@ -4,20 +4,21 @@ import { getServerAuthSession } from "@/lib/auth";
 import { getOpenAI, VISION_MODEL } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { checkAndRecordRateLimit, recordAiSuccess } from "@/lib/rate-limit";
-import { CATEGORIES } from "@/lib/constants";
+import { getCategories } from "@/lib/data/queries";
 import { requirePlusForAi } from "@/lib/billing";
+import type { CategoryDef } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 350;
 const ACCEPTED_EXT = [".csv", ".xlsx", ".xls"];
 const AMOUNT_EPSILON = 0.01;
 
-const SYSTEM_PROMPT = `Eres un asistente que normaliza extractos bancarios (Excel/CSV) exportados por distintos bancos, con formatos de columnas variables.
+function systemPrompt(categories: CategoryDef[]): string {
+  const labels = categories.map((c) => c.label).join(", ");
+  return `Eres un asistente que normaliza extractos bancarios (Excel/CSV) exportados por distintos bancos, con formatos de columnas variables.
 Recibirás las filas crudas del archivo (una por línea, columnas separadas por tabulador).
 Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
 {
@@ -28,7 +29,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
       "descripcion": string,    // concepto/comercio tal como aparece
       "importe": number,        // SIEMPRE positivo, con punto decimal
       "tipo": string,           // "expense" si es un cargo/gasto, "income" si es un abono/ingreso
-      "categoria": string       // una de: ${CATEGORY_KEYS.join(", ")}, o "" si es un ingreso
+      "categoria": string       // una de: ${labels}, o "" si es un ingreso
     }
   ]
 }
@@ -36,8 +37,9 @@ Reglas:
 - Ignora filas de cabecera, saldo, totales o líneas vacías/irrelevantes.
 - "importe" es siempre positivo; el signo lo indica "tipo", no el número.
 - Determina "tipo" por el signo original o por columnas tipo "Cargo/Abono", "Debe/Haber", etc.
-- "categoria" DEBE ser uno de los valores permitidos si tipo="expense"; usa "otros" si dudas. Para tipo="income" usa "".
+- "categoria" DEBE ser uno de los valores permitidos si tipo="expense"; usa "Otros" si dudas. Para tipo="income" usa "".
 - No inventes movimientos que no estén en los datos. No incluyas texto fuera del JSON.`;
+}
 
 interface NormalizedRow {
   fila: number;
@@ -143,6 +145,8 @@ export async function POST(req: Request) {
     .map((row, i) => `${i}\t${row.map((cell) => redactSensitive(String(cell ?? ""))).join("\t")}`)
     .join("\n");
 
+  const categories = await getCategories(userId);
+
   let extracted: { movimientos?: unknown[] };
   try {
     const completion = await getOpenAI().chat.completions.create({
@@ -150,7 +154,7 @@ export async function POST(req: Request) {
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt(categories) },
         {
           role: "user",
           content: `Hoy es ${new Date().toISOString().slice(0, 10)}. Estas son las filas del extracto (fila 0 = primera fila de datos):\n\n${serializedRows}`,
@@ -173,8 +177,9 @@ export async function POST(req: Request) {
     const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
     const fecha = isValidIsoDate(r.fecha) ? r.fecha : null;
     const tipo: "expense" | "income" = r.tipo === "income" ? "income" : "expense";
-    const catRaw = String(r.categoria ?? "").toLowerCase();
-    const categoria = tipo === "income" ? null : CATEGORY_KEYS.includes(catRaw as (typeof CATEGORY_KEYS)[number]) ? catRaw : "otros";
+    const catRaw = String(r.categoria ?? "").trim().toLowerCase();
+    const matched = categories.find((c) => c.label.toLowerCase() === catRaw || c.key.toLowerCase() === catRaw);
+    const categoria = tipo === "income" ? null : matched?.key ?? "otros";
     return {
       fila: Number(r.fila) || i,
       fecha,
