@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   Pencil,
   Palmtree,
+  Handshake,
 } from "lucide-react";
 import {
   createGrupo,
@@ -390,7 +391,7 @@ export function GrupoBody({ grupo, currentUserId }: { grupo: GrupoConDetalle; cu
             <DialogHeader>
               <DialogTitle>Añadir gasto</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-1">
+            <div className="space-y-4">
               <input
                 autoFocus
                 placeholder="Descripción"
@@ -586,28 +587,36 @@ export function GrupoBody({ grupo, currentUserId }: { grupo: GrupoConDetalle; cu
       {settleConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
-            <h4 className="text-base font-bold text-foreground">¿Marcar como saldado?</h4>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Se registrará este pago para saldar el balance.
-              {" "}<span className="font-semibold text-foreground">
-                {settleConfirm.net < 0
-                  ? `Debes ${formatEUR(Math.abs(settleConfirm.net))} a ${settleConfirm.name ?? "esta persona"}.`
-                  : `Te deben ${formatEUR(settleConfirm.net)} de ${settleConfirm.name ?? "esta persona"}.`}
+            <div className="flex flex-col items-center text-center">
+              <span
+                className="flex h-16 w-16 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: PALETTE.mintSoft, color: PALETTE.mintInk }}
+              >
+                <Handshake className="h-8 w-8" />
               </span>
-            </p>
-            <label className="mt-4 flex cursor-pointer items-center gap-2.5">
+              <h4 className="mt-3 text-xl font-bold text-foreground">¿Marcar como saldado?</h4>
+              <p className="mt-2.5 text-sm leading-relaxed text-foreground/80">
+                Se registrará este pago para saldar el balance.
+                {" "}<span className="font-semibold text-foreground">
+                  {settleConfirm.net < 0
+                    ? `Debes ${formatEUR(Math.abs(settleConfirm.net))} a ${settleConfirm.name ?? "esta persona"}.`
+                    : `Te deben ${formatEUR(settleConfirm.net)} de ${settleConfirm.name ?? "esta persona"}.`}
+                </span>
+              </p>
+            </div>
+            <label className="mt-5 flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3.5 py-3">
               <input
                 type="checkbox"
                 checked={settleAddToMovements}
                 onChange={(e) => setSettleAddToMovements(e.target.checked)}
-                className="h-4 w-4 rounded accent-primary"
+                className="h-4 w-4 shrink-0 rounded accent-primary"
               />
-              <span className="text-sm text-foreground">
+              <span className="text-xs font-medium text-foreground">
                 Añadir {formatEUR(Math.abs(settleConfirm.net))} a mis movimientos
                 {settleConfirm.net < 0 ? " (gasto)" : " (ingreso)"}
               </span>
             </label>
-            <div className="mt-5 flex gap-3">
+            <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setSettleConfirm(null)}
                 className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
