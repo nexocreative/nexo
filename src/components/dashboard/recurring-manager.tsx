@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
-import { CATEGORIES } from "@/lib/constants";
+import { useCategories } from "@/components/dashboard/categories-provider";
+import { CategoryFormDialog } from "@/components/dashboard/category-form-dialog";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -34,6 +35,7 @@ export interface RecItem {
 type Editing = RecItem | "new" | null;
 
 export function RecurringManager({ items }: { items: RecItem[] }) {
+  const categories = useCategories();
   const [editing, setEditing] = React.useState<Editing>(null);
 
   const expenses = items.filter((r) => r.type === "expense");
@@ -86,7 +88,7 @@ export function RecurringManager({ items }: { items: RecItem[] }) {
                 )}
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                  <CategoryIcon category={r.category} className="h-[18px] w-[18px]" />
+                  <CategoryIcon category={r.category} categories={categories} className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-foreground">{r.description}</p>
@@ -140,6 +142,7 @@ export function RecurringManager({ items }: { items: RecItem[] }) {
 
 function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () => void }) {
   const router = useRouter();
+  const categories = useCategories();
   const isNew = editing === "new";
   const item = editing && editing !== "new" ? editing : null;
 
@@ -151,6 +154,7 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
   const [active, setActive] = React.useState(true);
   const [pending, setPending] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const [showNewCategory, setShowNewCategory] = React.useState(false);
 
   // Sincroniza el formulario al abrir
   React.useEffect(() => {
@@ -279,14 +283,23 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
 
           {type === "expense" && (
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCategory(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Nueva
+                </button>
+              </div>
               <div className="relative mt-1.5">
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-9 text-sm outline-none focus:border-primary/50"
                 >
-                  {CATEGORIES.filter((c) => c.key !== "vacaciones").map((c) => (
+                  {categories.filter((c) => c.key !== "vacaciones").map((c) => (
                     <option key={c.key} value={c.key}>{c.label}</option>
                   ))}
                 </select>
@@ -294,6 +307,12 @@ function RecurringDialog({ editing, onClose }: { editing: Editing; onClose: () =
               </div>
             </div>
           )}
+          <CategoryFormDialog
+            open={showNewCategory}
+            onOpenChange={setShowNewCategory}
+            editing={null}
+            onSaved={(key) => key && setCategory(key)}
+          />
 
           {item && (
             <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">

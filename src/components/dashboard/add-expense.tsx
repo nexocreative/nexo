@@ -4,9 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp, FileSpreadsheet, ArrowLeft, Lock } from "lucide-react";
-import { CATEGORIES, PALETTE, getCategory } from "@/lib/constants";
+import { Camera, Mic, PenLine, Receipt, Check, Upload, Loader2, Square, TrendingUp, FileSpreadsheet, ArrowLeft, Lock, Plus } from "lucide-react";
+import { PALETTE, getCategory } from "@/lib/constants";
 import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { useCategories } from "@/components/dashboard/categories-provider";
+import { CategoryFormDialog } from "@/components/dashboard/category-form-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ImportarSection } from "@/components/dashboard/import-section";
 import { createTransaction, createIncome, type BudgetAlert } from "@/app/dashboard/actions";
@@ -125,8 +127,10 @@ export function AddExpense({ incomeCategories, aiTrial }: { incomeCategories: st
 
 function GastosSection({ aiTrial }: { aiTrial: AiTrial }) {
   const router = useRouter();
+  const categories = useCategories();
   const [method, setMethod] = React.useState<ExpenseMethod>("manual");
   const [category, setCategory] = React.useState("supermercado");
+  const [showNewCategory, setShowNewCategory] = React.useState(false);
   const [merchant, setMerchant] = React.useState("");
   const [amount, setAmount] = React.useState("");
   const [date, setDate] = React.useState(todayLocalISO());
@@ -390,7 +394,7 @@ function GastosSection({ aiTrial }: { aiTrial: AiTrial }) {
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</label>
             <div className="mt-2 flex flex-wrap gap-2">
-              {CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <button
                   key={c.key}
                   onClick={() => setCategory(c.key)}
@@ -399,13 +403,28 @@ function GastosSection({ aiTrial }: { aiTrial: AiTrial }) {
                     category === c.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/70",
                   )}
                 >
-                  <CategoryIcon category={c.key} className="h-3.5 w-3.5" />
+                  <CategoryIcon category={c.key} categories={categories} className="h-3.5 w-3.5" />
                   {c.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setShowNewCategory(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nueva
+              </button>
             </div>
           </div>
         </section>
+
+        <CategoryFormDialog
+          open={showNewCategory}
+          onOpenChange={setShowNewCategory}
+          editing={null}
+          onSaved={(key) => key && setCategory(key)}
+        />
 
         <section>
           <h2 className="text-lg font-bold tracking-tight">Previsualización</h2>
@@ -434,8 +453,8 @@ function GastosSection({ aiTrial }: { aiTrial: AiTrial }) {
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Categoría</p>
                 <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-bold text-foreground">
-                  <CategoryIcon category={category} className="h-4 w-4 text-muted-foreground" />
-                  {getCategory(category).label}
+                  <CategoryIcon category={category} categories={categories} className="h-4 w-4 text-muted-foreground" />
+                  {getCategory(category, categories).label}
                 </p>
               </div>
               <button

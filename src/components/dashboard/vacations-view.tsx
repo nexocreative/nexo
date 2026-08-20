@@ -19,6 +19,9 @@ import { PALETTE } from "@/lib/constants";
 import { upgradeToast } from "@/lib/upgrade-toast";
 import { cn } from "@/lib/utils";
 import { balanceColor } from "@/components/dashboard/juntos-view";
+import { CategoryIcon } from "@/components/dashboard/category-icon";
+import { CategoryFormDialog } from "@/components/dashboard/category-form-dialog";
+import { useCategories } from "@/components/dashboard/categories-provider";
 import type { GrupoConDetalle, GrupoBalance } from "@/types/database";
 
 interface ExpenseRow {
@@ -648,8 +651,13 @@ const VAC_CAT_MAP = Object.fromEntries(VAC_CATEGORIES.map((c) => [c.key, c]));
 
 
 function VacIcon({ category, className }: { category: string | null; className?: string }) {
-  const Icon: LucideIcon = (category ? VAC_CAT_MAP[category]?.icon : undefined) ?? Package;
-  return <Icon className={className} />;
+  const categories = useCategories();
+  if (category && VAC_CAT_MAP[category]) {
+    const Icon = VAC_CAT_MAP[category].icon;
+    return <Icon className={className} />;
+  }
+  // No es una de las categorías de viaje: prueba con las propias del usuario.
+  return <CategoryIcon category={category} categories={categories.filter((c) => c.custom)} className={className} />;
 }
 
 type VacMethod = "photo" | "voice" | "manual";
@@ -670,6 +678,12 @@ function AddExpenseCard({
   grupo: GrupoConDetalle | null;
 }) {
   const router = useRouter();
+  const categories = useCategories();
+  const vacCategories = React.useMemo(
+    () => [...VAC_CATEGORIES, ...categories.filter((c) => c.custom)],
+    [categories],
+  );
+  const [showNewCategory, setShowNewCategory] = React.useState(false);
   const [method, setMethod] = React.useState<VacMethod>("manual");
   const [concepto, setConcepto] = React.useState("");
   const [amount, setAmount] = React.useState("");
@@ -934,19 +948,35 @@ function AddExpenseCard({
                 className="w-1/2 px-3 py-2.5"
               />
             </div>
-            <div className="relative">
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-border bg-card py-2.5 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                >
+                  <option value="">Categoría (opcional)</option>
+                  {vacCategories.map((c) => (
+                    <option key={c.key} value={c.key}>{c.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewCategory(true)}
+                aria-label="Nueva categoría"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
               >
-                <option value="">Categoría (opcional)</option>
-                {VAC_CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>{c.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
+            <CategoryFormDialog
+              open={showNewCategory}
+              onOpenChange={setShowNewCategory}
+              editing={null}
+              onSaved={(key) => key && setCategory(key)}
+            />
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
@@ -1030,6 +1060,12 @@ const EXPENSES_PAGE_SIZE = 8;
 
 function ExpensesList({ vac }: { vac: ActiveVac }) {
   const router = useRouter();
+  const categories = useCategories();
+  const vacCategories = React.useMemo(
+    () => [...VAC_CATEGORIES, ...categories.filter((c) => c.custom)],
+    [categories],
+  );
+  const [showNewCategory, setShowNewCategory] = React.useState(false);
   const [editId, setEditId] = React.useState<string | null>(null);
   const [editConcepto, setEditConcepto] = React.useState("");
   const [editAmount, setEditAmount] = React.useState("");
@@ -1118,19 +1154,35 @@ function ExpensesList({ vac }: { vac: ActiveVac }) {
                       className="w-1/2 px-3 py-2"
                     />
                   </div>
-                  <div className="relative">
-                    <select
-                      value={editCategory}
-                      onChange={(ev) => setEditCategory(ev.target.value)}
-                      className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <select
+                        value={editCategory}
+                        onChange={(ev) => setEditCategory(ev.target.value)}
+                        className="w-full appearance-none rounded-xl border border-border bg-card py-2 pl-3 pr-10 text-sm outline-none focus:border-primary/50"
+                      >
+                        <option value="">Categoría (opcional)</option>
+                        {vacCategories.map((c) => (
+                          <option key={c.key} value={c.key}>{c.label}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategory(true)}
+                      aria-label="Nueva categoría"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
                     >
-                      <option value="">Categoría (opcional)</option>
-                      {VAC_CATEGORIES.map((c) => (
-                        <option key={c.key} value={c.key}>{c.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Plus className="h-4 w-4" />
+                    </button>
                   </div>
+                  <CategoryFormDialog
+                    open={showNewCategory}
+                    onOpenChange={setShowNewCategory}
+                    editing={null}
+                    onSaved={(key) => key && setEditCategory(key)}
+                  />
                   <input
                     value={editNotas}
                     onChange={(ev) => setEditNotas(ev.target.value)}
