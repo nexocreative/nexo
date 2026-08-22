@@ -3,9 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
-import { changePassword, updateNotificationPrefs } from "@/app/dashboard/settings-actions";
+import { changePassword, deleteAccount, updateNotificationPrefs } from "@/app/dashboard/settings-actions";
 import { deleteCategory } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export function AjustesView({
       )}
       <CategoriesSection initial={customCategories} />
       <NotificationsSection initial={notificationPrefs} />
+      <DeleteAccountSection hasPassword={hasPassword} />
     </div>
   );
 }
@@ -367,6 +369,117 @@ function NotificationsSection({ initial }: { initial: NotificationPrefs }) {
           />
         </li>
       </ul>
+    </section>
+  );
+}
+
+function DeleteAccountSection({ hasPassword }: { hasPassword: boolean }) {
+  const [open, setOpen] = React.useState(false);
+  const [confirmText, setConfirmText] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+
+  function close() {
+    if (loading) return;
+    setOpen(false);
+    setConfirmText("");
+    setPassword("");
+  }
+
+  async function handleDelete() {
+    setLoading(true);
+    const res = await deleteAccount({ confirmText, password: hasPassword ? password : undefined });
+    if (res.ok) {
+      toast.success("Tu cuenta se ha borrado");
+      await signOut({ callbackUrl: "/" });
+      return;
+    }
+    setLoading(false);
+    toast.error(res.error);
+  }
+
+  const canDelete = confirmText.trim().toUpperCase() === "ELIMINAR" && (!hasPassword || password.length > 0);
+
+  return (
+    <section className="rounded-3xl border border-red-500/30 bg-card p-6 shadow-sm">
+      <h3 className="text-base font-bold text-foreground">Borrar cuenta</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Borra permanentemente tus gastos, ingresos, ahorro, viajes y categorías propias, y cancela tu
+        suscripción si tienes Nexo Plus activo. Esta acción no se puede deshacer.
+      </p>
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-5 rounded-xl border border-red-500/40 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-500/10"
+      >
+        Borrar mi cuenta
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h4 className="text-base font-bold text-foreground">¿Borrar tu cuenta?</h4>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Esto borra tus datos de Nexo de forma permanente. No hay vuelta atrás.
+            </p>
+
+            <div className="mt-4 space-y-4">
+              {hasPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="deleteAccountPassword">Tu contraseña</Label>
+                  <div className="relative">
+                    <Input
+                      id="deleteAccountPassword"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      tabIndex={-1}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="deleteAccountConfirm">
+                  Escribe <span className="font-bold">ELIMINAR</span> para confirmar
+                </Label>
+                <Input
+                  id="deleteAccountConfirm"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={close}
+                disabled={loading}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={!canDelete || loading}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+              >
+                {loading ? "..." : "Borrar cuenta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
