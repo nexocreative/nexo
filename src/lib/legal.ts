@@ -14,6 +14,7 @@ export const LEGAL = {
   ],
   domicilio: "Collado Villalba, Madrid, España",
   email: "hola@finanzasnexo.es",
+  emailSoporte: "soporte@finanzasnexo.es",
   dominio: "finanzasnexo.es",
   ultimaActualizacion: "20 de agosto de 2026",
 } as const;

@@ -33,8 +33,8 @@ export function SiteFooter() {
             <FooterCol
               title="Soporte"
               links={[
-                { label: "Ayuda", href: "/#faq" },
-                { label: "Contacto", href: "mailto:hola@finanzasnexo.es" },
+                { label: "Ayuda", href: "/ayuda" },
+                { label: "Contacto", href: "/contacto" },
               ]}
             />
           </div>
