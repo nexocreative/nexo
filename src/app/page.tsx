@@ -58,31 +58,31 @@ const testimonials = [
   {
     quote: "Por fin sé en qué se me va el sueldo. Foto al ticket y a otra cosa.",
     author: "Lucía · Diseñadora",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1612203304476-2ed23c55b5b9?w=400&q=80&auto=format&fit=crop",
     alt: "Retrato de Lucía",
   },
   {
     quote: "Apuntar los gastos por voz mientras conduzco es magia. Ya no se me olvida nada.",
     author: "Diego · Comercial",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1628619487925-e9b8fc4c6b08?w=400&q=80&auto=format&fit=crop",
     alt: "Retrato de Diego",
   },
   {
     quote: "Mi pareja y yo dejamos de discutir por dinero. Lo vemos todo en el mismo sitio.",
     author: "Marta · Enfermera",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1630939687530-241d630735df?w=400&q=80&auto=format&fit=crop",
     alt: "Retrato de Marta",
   },
   {
     quote: "Llevo mis ingresos y gastos al día sin esfuerzo. Nunca fue tan fácil.",
     author: "Carlos · Autónomo",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1762708590808-c453c0e4fb0f?w=400&q=80&auto=format&fit=crop",
     alt: "Retrato de Carlos",
   },
   {
     quote: "En tres meses ahorré para mis vacaciones casi sin enterarme. Brutal.",
     author: "Ana · Profesora",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1526080652727-5b77f74eacd2?w=400&q=80&auto=format&fit=crop",
     alt: "Retrato de Ana",
   },
 ];
