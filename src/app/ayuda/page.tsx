@@ -53,7 +53,7 @@ export default function AyudaPage() {
             href="/contacto"
             className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-foreground transition-colors hover:underline"
           >
-            Contacta con nosotras
+            Contacta con nosotros
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
