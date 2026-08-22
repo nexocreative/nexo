@@ -13,7 +13,7 @@ export function SiteFooter() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 sm:gap-10">
             <FooterCol
               title="Producto"
               links={[
@@ -22,19 +22,25 @@ export function SiteFooter() {
               ]}
             />
             <FooterCol
+              className="order-2 sm:order-3"
+              title="Soporte"
+              links={[
+                { label: "Ayuda", href: "/ayuda" },
+                { label: "Contacto", href: "/contacto" },
+              ]}
+            />
+            {/* En móvil (2 columnas) va debajo, a ancho completo: si compartiera
+                fila con Producto o Soporte (2 enlaces cada una), su altura de 4
+                enlaces estiraría esa fila y dejaría un hueco raro encima de la
+                otra columna. */}
+            <FooterCol
+              className="order-3 col-span-2 sm:order-2 sm:col-span-1"
               title="Legal"
               links={[
                 { label: "Privacidad", href: "/privacidad" },
                 { label: "Aviso legal", href: "/aviso-legal" },
                 { label: "Términos y condiciones", href: "/terminos" },
                 { label: "Cookies", href: "/cookies" },
-              ]}
-            />
-            <FooterCol
-              title="Soporte"
-              links={[
-                { label: "Ayuda", href: "/ayuda" },
-                { label: "Contacto", href: "/contacto" },
               ]}
             />
           </div>
@@ -49,9 +55,17 @@ export function SiteFooter() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
+function FooterCol({
+  title,
+  links,
+  className,
+}: {
+  title: string;
+  links: { label: string; href: string }[];
+  className?: string;
+}) {
   return (
-    <div>
+    <div className={className}>
       <p className="text-xs font-bold uppercase tracking-wide text-foreground">{title}</p>
       <ul className="mt-4 space-y-2.5">
         {links.map((l) => (
