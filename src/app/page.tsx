@@ -92,7 +92,7 @@ export default function HomePage() {
     <main className="flex min-h-screen flex-col bg-background">
       {/* Header flotante */}
       <header className="sticky top-0 z-50 px-4 pt-4">
-        <div className="mx-auto grid max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-2.5 shadow-lg shadow-foreground/5 backdrop-blur-xl">
+        <div className="mx-auto grid max-w-5xl grid-cols-2 items-center gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-2.5 shadow-lg shadow-foreground/5 backdrop-blur-xl md:grid-cols-[1fr_auto_1fr]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-nexo.svg" alt="Nexo" width={96} height={31} className="h-auto w-[96px] justify-self-start" />
           <nav className="hidden items-center gap-1 md:flex">
