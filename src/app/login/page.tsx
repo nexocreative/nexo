@@ -42,8 +42,15 @@ export default async function LoginPage({
             authError={searchParams.error}
           />
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Al continuar aceptas el tratamiento de tus datos. Cada usuario solo
-            ve su propia información.
+            Al continuar aceptas los{" "}
+            <Link href="/terminos" className="underline underline-offset-2 hover:text-foreground">
+              Términos y condiciones
+            </Link>{" "}
+            y nuestra{" "}
+            <Link href="/privacidad" className="underline underline-offset-2 hover:text-foreground">
+              Política de privacidad
+            </Link>
+            . Cada usuario solo ve su propia información.
           </p>
         </CardContent>
       </Card>
